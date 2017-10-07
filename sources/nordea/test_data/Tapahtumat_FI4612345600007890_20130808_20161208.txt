@@ -1,0 +1,14 @@
+Tilinumero	FI4612345600007890
+
+Kirjauspäivä	Arvopäivä	Maksupäivä	Määrä	Saaja/Maksaja	Tilinumero	BIC	Tapahtuma	Viite	Maksajan viite	Viesti	Kortinnumero	Kuitti	
+
+23.03.2015	22.03.2015	22.03.2015	-30,00	Payee ry	FI1012345600007890	ASDFFIHHXXX	Itsepalvelu	1 27650					
+
+31.03.2015	31.03.2015	31.03.2015	1337,00	COMPANY OY			Pano		010495928328932932032903232330	Palkka, 31.3.2015 		E	
+
+02.04.2015	02.04.2015	02.04.2015	-34,85	Carrier	FI0101039390232975	DABAFIHH	e-lasku	39 12345 12345					
+
+07.04.2015	07.04.2015	07.04.2015	-123,12	FINANCING LOANS/FOO	151012-3456789		Laina Fubar	15101 23456 89000 01231				E	
+
+07.12.2016	07.12.2016	05.12.2016	50,00	EXAMPLE PERSON NAME			Pano			Merry xmas and happy new year to yo u and your family. 			
+

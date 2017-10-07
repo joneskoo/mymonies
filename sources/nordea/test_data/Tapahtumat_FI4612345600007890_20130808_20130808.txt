@@ -1,0 +1,6 @@
+Tilinumero	FI4612345600007890
+
+Kirjauspäivä	Arvopäivä	Maksupäivä	Määrä	Saaja/Maksaja	Tilinumero	BIC	Tapahtuma	Viite	Maksajan viite	Viesti	Kortinnumero	Kuitti	
+
+23.03.2015	22.03.2015	22.03.2015	-30,00	Payee ry	FI1012345600007890	ASDFFIHHXXX	Itsepalvelu	1 27650					
+
