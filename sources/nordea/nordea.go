@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joneskoo/mymonies/database"
 )
 
 type File struct {
 	Account string
-	Records []Record
+	Records []*database.Record
 }
 
 func FromTsv(filename string) (file File, err error) {
@@ -46,7 +48,7 @@ func FromTsv(filename string) (file File, err error) {
 		if err != nil {
 			return file, err
 		}
-		file.Records = append(file.Records, rec)
+		file.Records = append(file.Records, &rec)
 	}
 }
 
@@ -66,31 +68,11 @@ var fields = []string{
 	"Kuitti",
 }
 
-type Record struct {
-	TransactionDate time.Time `json:"transaction_date"`
-	ValueDate       time.Time `json:"value_date"`
-	PaymentDate     time.Time `json:"payment_date"`
-	Amount          float64   `json:"amount"`
-	PayeePayer      string    `json:"payee_payer"`
-	Account         string    `json:"account"`
-	BIC             string    `json:"bic"`
-	Transaction     string    `json:"transaction"`
-	Reference       string    `json:"reference"`
-	PayerReference  string    `json:"payer_reference"`
-	Message         string    `json:"message"`
-	CardNumber      string    `json:"card_number"`
-	Receipt         string    `json:"receipt"`
-}
-
-func (r Record) String() string {
-	return fmt.Sprintf("%s %-30s %8.2f", r.TransactionDate.Format(dateFormat), r.PayeePayer, r.Amount)
-}
-
 const dateFormat = "02.01.2006"
 
 var helsinki *time.Location
 
-func fromSlice(r []string) (rec Record, err error) {
+func fromSlice(r []string) (rec database.Record, err error) {
 	td, err := time.ParseInLocation(dateFormat, r[0], helsinki)
 	if err != nil {
 		return rec, fmt.Errorf("bad transaction date format: %v", err)
@@ -107,7 +89,7 @@ func fromSlice(r []string) (rec Record, err error) {
 	if err != nil {
 		return rec, fmt.Errorf("bad amount format: %v", err)
 	}
-	rec = Record{
+	rec = database.Record{
 		TransactionDate: td,
 		ValueDate:       vd,
 		PaymentDate:     pd,
@@ -120,7 +102,7 @@ func fromSlice(r []string) (rec Record, err error) {
 		PayerReference:  r[9],
 		Message:         r[10],
 		CardNumber:      r[11],
-		Receipt:         r[12],
+		// Receipt:         r[12], // receipt column ignored
 	}
 	return rec, err
 }

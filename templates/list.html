@@ -1,0 +1,45 @@
+<html>
+    <head>
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+
+    </head>
+    <body>
+        <div class="container">
+        <a href="/">Takaisin</a>
+        <h1>Tapahtumat tilillä {{.Account}}</h1>
+
+        <table class="table table-hover">
+            <thead class="thead-inverse">
+                <tr>
+                    <th>Kirjauspäivä</th>
+                    <th>Maksaja/Saaja</th>
+                    <th class="table-right">Määrä</th>
+                    <th>Luokka</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            {{ range .Records }}{{ $rec := .}}
+            <tr class="{{ if gt .Amount 0.0 }}table-success{{end}}">
+                    <td>{{ .TransactionDate | date}}</td>
+                    <!-- <td>{{ .ValueDate }}</td>
+                    <td>{{ .PaymentDate }}</td> -->
+                    <td>{{ .PayeePayer }}</td>
+                    <td style="text-align: right">{{ .Amount | printf "%.2f"}}</td>
+
+                    <td><select id="rec{{$rec.ID}}" class="form-control">
+                        {{range $t := tags}}
+                            <option{{if eq $t.Name $rec.Tag}} selected="true"{{end}}>{{$t.Name}}</option>
+                        {{end}}
+                    </select>
+                    </td>
+
+                </tr>
+
+            {{end}}
+            </tbody>
+
+        </table>
+    </div>
+    </body>
+</html>

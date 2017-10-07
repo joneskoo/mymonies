@@ -4,7 +4,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/lib/pq"
@@ -19,10 +18,10 @@ type Database struct {
 // Import represents one transaction report imported from a file to
 // database.
 type Import struct {
-	ID       int      `json:"-"`
-	Filename string   `json:"filename,omitempty"`
-	Account  string   `json:"account,omitempty"`
-	Records  []Record `json:"records,omitempty"`
+	ID       int       `json:"-"`
+	Filename string    `json:"filename,omitempty"`
+	Account  string    `json:"account,omitempty"`
+	Records  []*Record `json:"records,omitempty"`
 }
 
 const createImports = `CREATE TABLE IF NOT EXISTS imports (
@@ -45,6 +44,7 @@ type Record struct {
 	PayerReference  string    `json:"payer_reference,omitempty"`
 	Message         string    `json:"message,omitempty"`
 	CardNumber      string    `json:"card_number,omitempty"`
+	Tag             string    `json:"tag,omitempty"`
 }
 
 const createRecords = `CREATE TABLE IF NOT EXISTS records (
@@ -97,12 +97,7 @@ func (db *Database) CreateTables() error {
 		}
 	}
 
-	err = txn.Commit()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return nil
+	return txn.Commit()
 }
 
 // ListAccounts lists the accounts with data stored in the database.
@@ -122,6 +117,50 @@ func (db *Database) ListAccounts() (accounts []string, err error) {
 	return accounts, rows.Err()
 }
 
+// ListTags lists the tags stored in the database.
+func (db *Database) ListTags() (tags []Tag, err error) {
+	rows, err := db.conn.Query("SELECT name from tags ORDER BY name")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tag Tag
+		if err = rows.Scan(&tag.Name); err != nil {
+			return
+		}
+		tags = append(tags, tag)
+	}
+	return tags, rows.Err()
+}
+
+// ListRecordsByAccount lists the records stored in the database for account.
+func (db *Database) ListRecordsByAccount(account string) (records []Record, err error) {
+	const query = `SELECT
+		records.id, transaction_date, value_date, payment_date, amount,
+		payee_payer, records.account, bic, transaction, reference, payer_reference,
+		message, card_number, tag
+	FROM records, imports
+	WHERE records.import_id = imports.id AND imports.account = $1`
+	rows, err := db.conn.Query(query, account)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rec Record
+		err = rows.Scan(&rec.ID, &rec.TransactionDate, &rec.ValueDate,
+			&rec.PaymentDate, &rec.Amount, &rec.PayeePayer, &rec.Account,
+			&rec.BIC, &rec.Transaction, &rec.Reference, &rec.PayerReference,
+			&rec.Message, &rec.CardNumber, &rec.Tag)
+		if err != nil {
+			return
+		}
+		records = append(records, rec)
+	}
+	return records, rows.Err()
+}
+
 // AddImport saves data into database atomically.
 // If import fails, all changes are rolled back.
 func (db *Database) AddImport(data Import) error {
@@ -137,9 +176,22 @@ func (db *Database) AddImport(data Import) error {
 		return err
 	}
 
+	// Ensure all tags exist in database
+	tags := make(map[string]bool)
+	for _, r := range data.Records {
+		tags[r.Tag] = true
+	}
+	for tag, _ := range tags {
+		_, err := db.conn.Exec("INSERT INTO tags (name) VALUES ($1) ON CONFLICT DO NOTHING", tag)
+		if err != nil {
+			return err
+		}
+	}
+
 	stmt, err := txn.Prepare(pq.CopyIn("records", "import_id", "transaction_date",
 		"value_date", "payment_date", "amount", "payee_payer", "account", "bic",
-		"transaction", "reference", "payer_reference", "message", "card_number"))
+		"transaction", "reference", "payer_reference", "message", "card_number",
+		"tag"))
 	if err != nil {
 		return err
 	}
@@ -148,7 +200,7 @@ func (db *Database) AddImport(data Import) error {
 	for _, r := range data.Records {
 		_, err = stmt.Exec(importid, r.TransactionDate, r.ValueDate, r.PaymentDate,
 			r.Amount, r.PayeePayer, r.Account, r.BIC, r.Transaction, r.Reference,
-			r.PayerReference, r.Message, r.CardNumber)
+			r.PayerReference, r.Message, r.CardNumber, r.Tag)
 		if err != nil {
 			return err
 		}
