@@ -141,7 +141,8 @@ func (db *Database) ListRecordsByAccount(account string) (records []Record, err 
 		payee_payer, records.account, bic, transaction, reference, payer_reference,
 		message, card_number, tag
 	FROM records, imports
-	WHERE records.import_id = imports.id AND imports.account = $1`
+	WHERE records.import_id = imports.id AND imports.account = $1
+	ORDER BY transaction_date, records.id`
 	rows, err := db.conn.Query(query, account)
 	if err != nil {
 		return
