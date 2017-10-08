@@ -4,12 +4,20 @@
 
     </head>
     <body>
-        <div class="container">
+    <div class="container">
         <h1>Tilit</h1>
 
         <ul class="list">
             {{range accounts}}
             <li><a href="/accounts/{{.}}">{{.}}</a></li>
+            {{end}}
+        </ul>
+
+        <h1>Luokat</h1>
+
+        <ul class="list">
+            {{range tags}}
+            <li><a href="/tags/{{.Name}}">{{.Name}}</a></li>
             {{end}}
         </ul>
 

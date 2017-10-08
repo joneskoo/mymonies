@@ -65,11 +65,19 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tags, err := h.db.SumTransactionsByTag(account, month)
+	if err != nil {
+		log.Printf("Error fetching tags: %v", err)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+
 	data := struct {
 		Account string
 		Records []database.Record
+		Tags    map[string]float64
 		Month   string
-	}{account, records, month}
+	}{account, records, tags, month}
 	h.render(w, r, "list.html", data)
 }
 

@@ -167,6 +167,35 @@ func (db *Database) ListRecordsByAccount(account string, month string) (records 
 	return records, rows.Err()
 }
 
+// SumTransactionsByTag lists the records stored in the database for account.
+func (db *Database) SumTransactionsByTag(account string, month string) (map[string]float64, error) {
+	date := month + "-01"
+	interval := "1 month"
+	const query = `SELECT
+		tag, sum(amount)
+	FROM records, imports
+	WHERE
+		records.import_id = imports.id AND
+		imports.account = $1 AND
+		records.transaction_date BETWEEN $2::date and $2::date + $3::interval
+	GROUP BY 1`
+	rows, err := db.conn.Query(query, account, date, interval)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	tags := make(map[string]float64)
+	for rows.Next() {
+		var tag string
+		var amount float64
+		if err := rows.Scan(&tag, &amount); err != nil {
+			return nil, err
+		}
+		tags[tag] = amount
+	}
+	return tags, rows.Err()
+}
+
 // AddImport saves data into database atomically.
 // If import fails, all changes are rolled back.
 func (db *Database) AddImport(data Import) error {

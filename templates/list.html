@@ -1,33 +1,64 @@
 <html>
     <head>
-            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
-        <script>
+<script>
+google.charts.load('current', {'packages':['corechart']});
+google.charts.setOnLoadCallback(drawChart);
 
-        function updateTag(element) {
-            if (!element.id.startsWith("rec")) {
-                return;
-            }
-            let id = element.id.substring(3);
+function drawChart() {
 
-            var formData = new FormData();
-            formData.append('id', id);
-            formData.append('tag', element.value);
+    let data = [
+    {{range $tag, $value := .Tags}}
+    ['{{$tag}}', {{$value}}],
+    {{end}}
+    ];
 
-            let onSuccess = () => console.log(`Successfully updated tag ${id} tag to ${element.value}`);
-            let onError = (err) => console.log(`Failed to update tag ${id} tag: ${err}`);
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', `/records/${id}/tag`, true);
-            xhr.onload = function(e) {
-                if (this.status == 200) {
-                    return onSuccess();
-                }
-                return onError(new Error(`got HTTP status ${this.status}, want 200`));
-            };
-            xhr.onerror = onError;
-            xhr.send(formData);
+    let isIncome = (v) => v[1] > 0;
+    let isExpense = (v) => v[1] < 0;
+    let negate = (v) => [v[0], -v[1]];
+
+    let incomeData = google.visualization.arrayToDataTable(
+        Array.prototype.concat(
+            [['Luokka', '€']],
+            data.filter(isIncome)));
+
+    let expenseData = google.visualization.arrayToDataTable(
+        Array.prototype.concat(
+            [['Luokka', '€']],
+            data.filter(isExpense).map(negate)));
+
+    let chart = new google.visualization.PieChart(document.getElementById('expenses'));
+    chart.draw(expenseData, {title: 'Menot'});
+    chart = new google.visualization.PieChart(document.getElementById('incomes'));
+    chart.draw(incomeData, {title: 'Tulot'});
+}
+
+function updateTag(element) {
+    if (!element.id.startsWith("rec")) {
+        return;
+    }
+    let id = element.id.substring(3);
+
+    var formData = new FormData();
+    formData.append('id', id);
+    formData.append('tag', element.value);
+
+    let onSuccess = () => console.log(`Successfully updated tag ${id} tag to ${element.value}`);
+    let onError = (err) => console.log(`Failed to update tag ${id} tag: ${err}`);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', `/records/${id}/tag`, true);
+    xhr.onload = function(e) {
+        if (this.status == 200) {
+            return onSuccess();
         }
-        </script>
+        return onError(new Error(`got HTTP status ${this.status}, want 200`));
+    };
+    xhr.onerror = onError;
+    xhr.send(formData);
+}
+</script>
     </head>
     <body>
         <div class="container">
@@ -40,6 +71,8 @@
             <input type="submit">
           </form>
 
+        <div id="expenses" style="width: 400px; height: 200px; float: left;"></div>
+        <div id="incomes" style="width: 400px; height: 200px; float: left;"></div>
 
         <table class="table table-hover">
             <thead class="thead-inverse">
