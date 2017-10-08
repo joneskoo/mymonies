@@ -135,15 +135,20 @@ func (db *Database) ListTags() (tags []Tag, err error) {
 }
 
 // ListRecordsByAccount lists the records stored in the database for account.
-func (db *Database) ListRecordsByAccount(account string) (records []Record, err error) {
+func (db *Database) ListRecordsByAccount(account string, month string) (records []Record, err error) {
+	date := month + "-01"
+	interval := "1 month"
 	const query = `SELECT
 		records.id, transaction_date, value_date, payment_date, amount,
 		payee_payer, records.account, bic, transaction, reference, payer_reference,
 		message, card_number, tag
 	FROM records, imports
-	WHERE records.import_id = imports.id AND imports.account = $1
+	WHERE
+		records.import_id = imports.id AND
+		imports.account = $1 AND
+		records.transaction_date BETWEEN $2::date and $2::date + $3::interval
 	ORDER BY transaction_date, records.id`
-	rows, err := db.conn.Query(query, account)
+	rows, err := db.conn.Query(query, account, date, interval)
 	if err != nil {
 		return
 	}

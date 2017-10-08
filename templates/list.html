@@ -34,6 +34,13 @@
         <a href="/">Takaisin</a>
         <h1>Tapahtumat tilillä {{.Account}}</h1>
 
+        <form>
+            Näytä tapahtumat kuukaudelle
+            <input type="month" value="{{.Month}}" name="month">
+            <input type="submit">
+          </form>
+
+
         <table class="table table-hover">
             <thead class="thead-inverse">
                 <tr>

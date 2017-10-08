@@ -52,7 +52,13 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 	p := strings.LastIndex(r.URL.Path, "/")
 	account := r.URL.Path[p+1:]
 
-	records, err := h.db.ListRecordsByAccount(account)
+	month := r.FormValue("month")
+	if month == "" {
+		// Default: previous month
+		month = time.Now().AddDate(0, -1, 0).Format("2006-01")
+	}
+
+	records, err := h.db.ListRecordsByAccount(account, month)
 	if err != nil {
 		log.Printf("Error fetching records: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)
@@ -62,7 +68,8 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Account string
 		Records []database.Record
-	}{account, records}
+		Month   string
+	}{account, records, month}
 	h.render(w, r, "list.html", data)
 }
 
