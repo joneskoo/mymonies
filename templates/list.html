@@ -2,6 +2,32 @@
     <head>
             <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
 
+        <script>
+
+        function updateTag(element) {
+            if (!element.id.startsWith("rec")) {
+                return;
+            }
+            let id = element.id.substring(3);
+
+            var formData = new FormData();
+            formData.append('id', id);
+            formData.append('tag', element.value);
+
+            let onSuccess = () => console.log(`Successfully updated tag ${id} tag to ${element.value}`);
+            let onError = (err) => console.log(`Failed to update tag ${id} tag: ${err}`);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', `/records/${id}/tag`, true);
+            xhr.onload = function(e) {
+                if (this.status == 200) {
+                    return onSuccess();
+                }
+                return onError(new Error(`got HTTP status ${this.status}, want 200`));
+            };
+            xhr.onerror = onError;
+            xhr.send(formData);
+        }
+        </script>
     </head>
     <body>
         <div class="container">
@@ -27,7 +53,7 @@
                     <td>{{ .PayeePayer }}</td>
                     <td style="text-align: right">{{ .Amount | printf "%.2f"}}</td>
 
-                    <td><select id="rec{{$rec.ID}}" class="form-control">
+                    <td><select id="rec{{$rec.ID}}" class="form-control" onchange="updateTag(this)">
                         {{range $t := tags}}
                             <option{{if eq $t.Name $rec.Tag}} selected="true"{{end}}>{{$t.Name}}</option>
                         {{end}}

@@ -218,3 +218,12 @@ func (db *Database) AddImport(data Import) error {
 
 	return txn.Commit()
 }
+
+// SetRecordTag updates the Record Tag for record id to value tag.
+func (db *Database) SetRecordTag(id int, tag string) error {
+	_, err := db.conn.Exec("UPDATE records SET tag = $1 WHERE id = $2", tag, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}

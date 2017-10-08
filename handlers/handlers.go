@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ func New(db *database.Database) http.Handler {
 	h := handler{db, mux}
 	mux.HandleFunc("/", h.accounts)
 	mux.HandleFunc("/accounts/", h.list)
+	mux.HandleFunc("/records/", h.updateTag)
 	return &h
 }
 
@@ -25,6 +27,25 @@ type handler struct {
 
 func (h handler) accounts(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, "accounts.html", h)
+}
+
+func (h handler) updateTag(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache")
+
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		log.Printf("updateTag: failed to convert id %q to integer", r.FormValue("id"))
+		http.Error(w, "Form value of id could not be parsed as integer", http.StatusBadRequest)
+		return
+	}
+	tag := r.FormValue("tag")
+
+	if err := h.db.SetRecordTag(id, tag); err != nil {
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h handler) list(w http.ResponseWriter, r *http.Request) {
