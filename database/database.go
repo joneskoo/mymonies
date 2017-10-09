@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	_ "github.com/lib/pq" // postgresql driver
+
+	// Load postgresql driver
+	_ "github.com/lib/pq"
 )
 
 // Database represents database connection.
