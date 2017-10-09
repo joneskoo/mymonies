@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/joneskoo/mymonies/database"
-	"github.com/joneskoo/mymonies/handlers"
+	"github.com/joneskoo/mymonies/handler"
 )
 
 func main() {
@@ -33,6 +33,6 @@ func main() {
 	}
 	laddr := net.JoinHostPort("127.0.0.1", port)
 	log.Println("Listening on http://" + laddr)
-	h := handlers.New(db)
+	h := handler.New(db)
 	log.Fatal(http.ListenAndServe(laddr, h))
 }
