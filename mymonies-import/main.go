@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/joneskoo/mymonies/database"
-	"github.com/joneskoo/mymonies/sources/nordea"
+	"github.com/joneskoo/mymonies/datasource/nordea"
 )
 
 func main() {
