@@ -26,11 +26,6 @@ type Import struct {
 	Records  []*Record `json:"records,omitempty"`
 }
 
-const createImports = `CREATE TABLE IF NOT EXISTS imports (
-	id SERIAL UNIQUE,
-	filename TEXT,
-	account TEXT NOT NULL)`
-
 // Record represents one account transaction record.
 type Record struct {
 	ID              int       `json:"-"`
@@ -49,42 +44,26 @@ type Record struct {
 	Tag             string    `json:"tag,omitempty"`
 }
 
-const createRecords = `CREATE TABLE IF NOT EXISTS records (
-	id SERIAL UNIQUE,
-	import_id INT REFERENCES imports(id) ON DELETE CASCADE,
-	transaction_date DATE ,
-	value_date DATE,
-	payment_date DATE,
-	amount DOUBLE PRECISION,
-	payee_payer TEXT,
-	account TEXT,
-	bic TEXT,
-	transaction TEXT,
-	reference TEXT,
-	payer_reference TEXT,
-	message TEXT,
-	card_number TEXT,
-	tag TEXT REFERENCES tags(name))`
-
 // Tag represents a transaction tag
 type Tag struct {
 	Name     string
 	Patterns pq.StringArray
 }
 
-const createTags = `CREATE TABLE IF NOT EXISTS tags (
-	id	serial UNIQUE,
-	name	text UNIQUE,
-	patterns	text[])`
-
-// New creates a mymonies database connection.
+// New opens a new database connection.
 func New(conn string) (*Database, error) {
 	db, err := sql.Open("postgres", conn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
 	return &Database{db}, nil
 }
+
+// Close closes the database, releasing any open resources.
+func (db *Database) Close() error { return db.conn.Close() }
 
 // CreateTables creates database tables if they do not exist.
 func (db *Database) CreateTables() error {
@@ -92,16 +71,42 @@ func (db *Database) CreateTables() error {
 	if err != nil {
 		return err
 	}
+	defer txn.Rollback()
 
-	queries := []string{createImports, createTags, createRecords}
-	for _, q := range queries {
+	for _, q := range createTableSQL {
 		_, err := txn.Exec(q)
 		if err != nil {
 			return err
 		}
 	}
-
 	return txn.Commit()
+}
+
+var createTableSQL = []string{
+	`CREATE TABLE IF NOT EXISTS imports (
+		id		serial UNIQUE,
+		filename	text,
+		account		text NOT NULL)`,
+	`CREATE TABLE IF NOT EXISTS tags (
+		id		serial UNIQUE,
+		name		text UNIQUE,
+		patterns	text[])`,
+	`CREATE TABLE IF NOT EXISTS records (
+		id			serial UNIQUE,
+		import_id		int REFERENCES imports(id) ON DELETE CASCADE,
+		transaction_date	date ,
+		value_date		date,
+		payment_date		date,
+		amount			double precision,
+		payee_payer		text,
+		account			text,
+		bic			text,
+		transaction		text,
+		reference		text,
+		payer_reference		text,
+		message			text,
+		card_number		text,
+		tag			text REFERENCES tags(name))`,
 }
 
 // ListAccounts lists the accounts with data stored in the database.
@@ -220,7 +225,7 @@ func (db *Database) AddImport(data Import) error {
 	for _, r := range data.Records {
 		tags[r.Tag] = true
 	}
-	for tag, _ := range tags {
+	for tag := range tags {
 		_, err := db.conn.Exec("INSERT INTO tags (name) VALUES ($1) ON CONFLICT DO NOTHING", tag)
 		if err != nil {
 			return err
@@ -261,8 +266,5 @@ func (db *Database) AddImport(data Import) error {
 // SetRecordTag updates the Record Tag for record id to value tag.
 func (db *Database) SetRecordTag(id int, tag string) error {
 	_, err := db.conn.Exec("UPDATE records SET tag = $1 WHERE id = $2", tag, id)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
