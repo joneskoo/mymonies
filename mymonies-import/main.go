@@ -1,3 +1,4 @@
+// Command mymonies-import imports Nordea TSV files into database.
 package main
 
 import (
