@@ -1,3 +1,4 @@
+// Command mymonies is a personal finance organizer web service.
 package main
 
 import (

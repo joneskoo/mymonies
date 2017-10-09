@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/joneskoo/mymonies/database"
@@ -25,11 +24,11 @@ func main() {
 	}
 	tsvFile := flag.Arg(0)
 
-	file, err := nordea.FromTsv(tsvFile)
+	file, err := nordea.FromFile(tsvFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, r := range file.Records {
+	for _, r := range file.Transactions() {
 		r.Tag = classify(*r)
 	}
 
@@ -43,9 +42,9 @@ func main() {
 	}
 
 	err = db.AddImport(database.Import{
-		Account:  file.Account,
-		Filename: filepath.Base(tsvFile),
-		Records:  file.Records,
+		Account:  file.Account(),
+		Filename: file.FileName(),
+		Records:  file.Transactions(),
 	})
 	if err != nil {
 		log.Fatal(err)

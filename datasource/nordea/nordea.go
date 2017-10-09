@@ -1,3 +1,4 @@
+// Package nordea implements Nordea bank TSV transaction record data source.
 package nordea
 
 import (
@@ -6,51 +7,65 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/joneskoo/mymonies/database"
+	"github.com/joneskoo/mymonies/datasource"
 )
 
-type File struct {
-	Account string
-	Records []*database.Record
-}
-
-func FromTsv(filename string) (file File, err error) {
+// FromFile loads transaction records from a Nordea TSV file.
+func FromFile(filename string) (datasource.File, error) {
 	lineEnd := []byte("\n\r\n")
 
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return file, fmt.Errorf("could not read file: %v", err)
+		return nil, fmt.Errorf("could not read file: %v", err)
 	}
+
+	// The first line contains the account number.
 	pos := bytes.Index(data, lineEnd)
 	if pos == -1 {
-		return file, fmt.Errorf("unknown format, could not find line break LF CR LF")
+		return nil, fmt.Errorf("unknown format, could not find line break LF CR LF")
 	}
-	account, body := data[:pos], data[pos+len(lineEnd):]
-	parts := bytes.SplitN(account, []byte{'\t'}, 2)
-	file.Account = string(parts[1])
+	accountLine, body := data[:pos], data[pos+len(lineEnd):]
+	parts := bytes.SplitN(accountLine, []byte{'\t'}, 2)
+	account := string(parts[1])
+
+	// Read transaction records after account number.
 	r := csv.NewReader(bytes.NewReader(body))
 	r.Comma = '\t'
 	r.FieldsPerRecord = 14
 	_, _ = r.Read() // ignore first line
+	transactions := []*database.Record{}
 	for {
 		r, err := r.Read()
 		if err == io.EOF {
-			return file, nil
+			break
 		}
 		if err != nil {
-			return file, err
+			return nil, err
 		}
 		rec, err := fromSlice(r)
 		if err != nil {
-			return file, err
+			return nil, err
 		}
-		file.Records = append(file.Records, &rec)
+		transactions = append(transactions, &rec)
 	}
+	return file{filename, account, transactions}, nil
 }
+
+type file struct {
+	filename     string
+	account      string
+	transactions []*database.Record
+}
+
+func (f file) Account() string                  { return f.account }
+func (f file) FileName() string                 { return filepath.Base(f.filename) }
+func (f file) Transactions() []*database.Record { return f.transactions }
 
 var fields = []string{
 	"Kirjauspäivä",

@@ -16,25 +16,26 @@ func mustParseRFC3339(value string) time.Time {
 	return ts.In(helsinki)
 }
 
-func TestFromTsv(t *testing.T) {
+func TestFromFile(t *testing.T) {
 	type args struct {
 		filename string
 	}
 	tests := []struct {
 		name     string
 		args     args
-		wantFile File
+		wantFile file
 		wantErr  bool
 	}{
-		{"missing file", args{}, File{}, true},
-		{"invalid format", args{"test_data/invalid.txt"}, File{}, true},
+		{"missing file", args{""}, file{}, true},
+		{"invalid format", args{"test_data/invalid.txt"}, file{}, true},
 
 		{
 			"valid file",
 			args{"test_data/Tapahtumat_FI4612345600007890_20130808_20130808.txt"},
-			File{
-				Account: "FI4612345600007890",
-				Records: []*database.Record{
+			file{
+				filename: "Tapahtumat_FI4612345600007890_20130808_20130808.txt",
+				account:  "FI4612345600007890",
+				transactions: []*database.Record{
 					&database.Record{
 						TransactionDate: mustParseRFC3339("2015-03-23T00:00:00+02:00"),
 						ValueDate:       mustParseRFC3339("2015-03-22T00:00:00+02:00"),
@@ -54,18 +55,21 @@ func TestFromTsv(t *testing.T) {
 			false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotFile, err := FromTsv(tt.args.filename)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FromTsv() error = %v, wantErr %v", err, tt.wantErr)
+	for _, tc := range tests {
+		t.Run(tc.name, func(tt *testing.T) {
+			gotFile, err := FromFile(tc.args.filename)
+			if err != nil && !tc.wantErr {
+				tt.Fatalf("FromFile() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if err != nil {
 				return
 			}
-			if !reflect.DeepEqual(gotFile.Account, tt.wantFile.Account) {
-				t.Errorf("FromTsv() Account = %v, want %v", gotFile.Account, tt.wantFile.Account)
+			gotNordea := gotFile.(file)
+			if gotNordea.account != tc.wantFile.account {
+				tt.Fatalf("FromFile() account = %v, want %v", gotNordea.account, tc.wantFile.account)
 			}
-			if !reflect.DeepEqual(gotFile.Records, tt.wantFile.Records) {
-				t.Errorf("FromTsv() = %+#v, want %+#v", gotFile.Records, tt.wantFile.Records)
+			if !reflect.DeepEqual(gotNordea.transactions, tc.wantFile.transactions) {
+				tt.Fatalf("FromFile() = %+#v, want %+#v", gotNordea.transactions, tc.wantFile.transactions)
 			}
 		})
 	}
