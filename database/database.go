@@ -66,12 +66,14 @@ const createRecords = `CREATE TABLE IF NOT EXISTS records (
 
 // Tag represents a transaction tag
 type Tag struct {
-	Name string
+	Name     string
+	Patterns pq.StringArray
 }
 
 const createTags = `CREATE TABLE IF NOT EXISTS tags (
-	id SERIAL UNIQUE,
-	name TEXT UNIQUE)`
+	id	serial UNIQUE,
+	name	text UNIQUE,
+	patterns	text[])`
 
 // New creates a mymonies database connection.
 func New(conn string) (*Database, error) {
@@ -119,14 +121,14 @@ func (db *Database) ListAccounts() (accounts []string, err error) {
 
 // ListTags lists the tags stored in the database.
 func (db *Database) ListTags() (tags []Tag, err error) {
-	rows, err := db.conn.Query("SELECT name from tags ORDER BY name")
+	rows, err := db.conn.Query("SELECT name, patterns from tags ORDER BY name")
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var tag Tag
-		if err = rows.Scan(&tag.Name); err != nil {
+		if err = rows.Scan(&tag.Name, &tag.Patterns); err != nil {
 			return
 		}
 		tags = append(tags, tag)
