@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/joneskoo/mymonies/database"
@@ -15,7 +14,7 @@ func New(db *database.Database) http.Handler {
 	mux := http.NewServeMux()
 	h := handler{db, mux}
 	mux.HandleFunc("/", h.accounts)
-	mux.HandleFunc("/accounts/", h.list)
+	mux.HandleFunc("/transactions", h.listTransactions)
 	mux.HandleFunc("/records/", h.updateTag)
 	return &h
 }
@@ -48,24 +47,23 @@ func (h handler) updateTag(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h handler) list(w http.ResponseWriter, r *http.Request) {
-	p := strings.LastIndex(r.URL.Path, "/")
-	account := r.URL.Path[p+1:]
-
+func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
+	account := r.FormValue("account")
 	month := r.FormValue("month")
+	q := r.FormValue("q")
 	if month == "" {
 		// Default: previous month
 		month = time.Now().AddDate(0, -1, 0).Format("2006-01")
 	}
 
-	records, err := h.db.ListRecordsByAccount(account, month)
+	records, err := h.db.ListRecordsByAccount(account, month, q)
 	if err != nil {
 		log.Printf("Error fetching records: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
-	tags, err := h.db.SumTransactionsByTag(account, month)
+	tags, err := h.db.SumTransactionsByTag(account, month, q)
 	if err != nil {
 		log.Printf("Error fetching tags: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)

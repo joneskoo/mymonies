@@ -144,20 +144,25 @@ func (db *Database) ListTags() (tags []Tag, err error) {
 }
 
 // ListRecordsByAccount lists the records stored in the database for account.
-func (db *Database) ListRecordsByAccount(account string, month string) (records []Record, err error) {
-	date := month + "-01"
-	interval := "1 month"
-	const query = `SELECT
+func (db *Database) ListRecordsByAccount(account, month, search string) (records []Record, err error) {
+	var startDate, interval string
+	if month != "" {
+		startDate = month + "-01"
+		interval = "1 month"
+	}
+
+	query := `SELECT
 		records.id, transaction_date, value_date, payment_date, amount,
 		payee_payer, records.account, bic, transaction, reference, payer_reference,
 		message, card_number, tag
 	FROM records, imports
 	WHERE
 		records.import_id = imports.id AND
-		imports.account = $1 AND
-		records.transaction_date BETWEEN $2::date and $2::date + $3::interval
+		($1 = '' OR imports.account = $1) AND
+		(($2 = '' AND $3 = '') OR records.transaction_date BETWEEN $2::date and $2::date + $3::interval) AND
+		($4 = '' OR payee_payer ILIKE $4 OR records.account = $4 OR transaction = $4 OR reference = $4 OR payer_reference = $4 OR message = $4)
 	ORDER BY transaction_date, records.id`
-	rows, err := db.conn.Query(query, account, date, interval)
+	rows, err := db.conn.Query(query, account, startDate, interval, search)
 	if err != nil {
 		return
 	}
@@ -177,18 +182,21 @@ func (db *Database) ListRecordsByAccount(account string, month string) (records 
 }
 
 // SumTransactionsByTag lists the records stored in the database for account.
-func (db *Database) SumTransactionsByTag(account string, month string) (map[string]float64, error) {
-	date := month + "-01"
-	interval := "1 month"
-	const query = `SELECT
-		tag, sum(amount)
-	FROM records, imports
+func (db *Database) SumTransactionsByTag(account, month, search string) (map[string]float64, error) {
+	var startDate, interval string
+	if month != "" {
+		startDate = month + "-01"
+		interval = "1 month"
+	}
+
+	query := `SELECT tag, sum(amount) FROM records, imports
 	WHERE
 		records.import_id = imports.id AND
-		imports.account = $1 AND
-		records.transaction_date BETWEEN $2::date and $2::date + $3::interval
+		($1 = '' OR imports.account = $1) AND
+		(($2 = '' AND $3 = '') OR records.transaction_date BETWEEN $2::date and $2::date + $3::interval) AND
+		($4 = '' OR payee_payer ILIKE $4 OR records.account = $4 OR transaction = $4 OR reference = $4 OR payer_reference = $4 OR message = $4)
 	GROUP BY 1`
-	rows, err := db.conn.Query(query, account, date, interval)
+	rows, err := db.conn.Query(query, account, startDate, interval, search)
 	if err != nil {
 		return nil, err
 	}

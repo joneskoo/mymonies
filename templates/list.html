@@ -67,6 +67,7 @@ function updateTag(element) {
 
         <form>
             Näytä tapahtumat kuukaudelle
+            <input type="hidden" value="{{.Account}}" name="account">
             <input type="month" value="{{.Month}}" name="month">
             <input type="submit">
           </form>
