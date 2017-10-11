@@ -8,19 +8,19 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/joneskoo/mymonies/database"
+	"github.com/joneskoo/mymonies/database/postgres"
 	"github.com/joneskoo/mymonies/handler"
 )
 
 func main() {
-	postgres := flag.String("postgres", "database=mymonies", "PostgreSQL connection string")
+	conn := flag.String("postgres", "database=mymonies", "PostgreSQL connection string")
 	flag.Parse()
 
 	log.SetPrefix("[mymonies] ")
 	log.SetFlags(log.Lshortfile)
 
 	log.Println("Connecting to database…")
-	db, err := database.New(*postgres)
+	db, err := postgres.New(*conn)
 	if err != nil {
 		log.Fatal(err)
 	}

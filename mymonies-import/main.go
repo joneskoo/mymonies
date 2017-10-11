@@ -10,11 +10,12 @@ import (
 	"strings"
 
 	"github.com/joneskoo/mymonies/database"
+	"github.com/joneskoo/mymonies/database/postgres"
 	"github.com/joneskoo/mymonies/datasource/nordea"
 )
 
 func main() {
-	postgres := flag.String("postgres", "database=mymonies", "PostgreSQL connection string")
+	conn := flag.String("postgres", "database=mymonies", "PostgreSQL connection string")
 	flag.Parse()
 
 	log.SetPrefix("[mymonies] ")
@@ -34,7 +35,7 @@ func main() {
 	}
 
 	log.Println("Connecting to database…")
-	db, err := database.New(*postgres)
+	db, err := postgres.New(*conn)
 	if err != nil {
 		log.Fatal(err)
 	}

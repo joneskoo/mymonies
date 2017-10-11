@@ -10,7 +10,7 @@ import (
 	"github.com/joneskoo/mymonies/database"
 )
 
-func New(db *database.Database) http.Handler {
+func New(db database.Database) http.Handler {
 	mux := http.NewServeMux()
 	h := handler{db, mux}
 	mux.HandleFunc("/", h.accounts)
@@ -20,7 +20,7 @@ func New(db *database.Database) http.Handler {
 }
 
 type handler struct {
-	db *database.Database
+	db database.Database
 	*http.ServeMux
 }
 
