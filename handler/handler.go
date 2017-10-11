@@ -15,7 +15,7 @@ func New(db database.Database) http.Handler {
 	h := handler{db, mux}
 	mux.HandleFunc("/", h.accounts)
 	mux.HandleFunc("/transactions", h.listTransactions)
-	mux.HandleFunc("/records/", h.updateTag)
+	mux.HandleFunc("/transactions/", h.updateTag)
 	return &h
 }
 
@@ -56,9 +56,9 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		month = time.Now().AddDate(0, -1, 0).Format("2006-01")
 	}
 
-	records, err := h.db.ListRecordsByAccount(account, month, q)
+	transactions, err := h.db.ListTransactions(account, month, q)
 	if err != nil {
-		log.Printf("Error fetching records: %v", err)
+		log.Printf("Error fetching transactions: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
@@ -71,11 +71,11 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Account string
-		Records []database.Record
-		Tags    map[string]float64
-		Month   string
-	}{account, records, tags, month}
+		Account      string
+		Transactions []database.Transaction
+		Tags         map[string]float64
+		Month        string
+	}{account, transactions, tags, month}
 	h.render(w, r, "list.html", data)
 }
 

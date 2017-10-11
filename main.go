@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/handlers"
 	"github.com/joneskoo/mymonies/database/postgres"
 	"github.com/joneskoo/mymonies/handler"
 )
@@ -35,5 +36,6 @@ func main() {
 	laddr := net.JoinHostPort("127.0.0.1", port)
 	log.Println("Listening on http://" + laddr)
 	h := handler.New(db)
+	h = handlers.LoggingHandler(os.Stdout, h)
 	log.Fatal(http.ListenAndServe(laddr, h))
 }

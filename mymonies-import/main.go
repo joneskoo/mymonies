@@ -44,9 +44,9 @@ func main() {
 	}
 
 	err = db.AddImport(database.Import{
-		Account:  file.Account(),
-		Filename: file.FileName(),
-		Records:  file.Transactions(),
+		Account:      file.Account(),
+		Filename:     file.FileName(),
+		Transactions: file.Transactions(),
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -77,7 +77,7 @@ func loadClassPatterns() (patterns map[string][]string) {
 	return
 }
 
-func classify(r database.Record) string {
+func classify(r database.Transaction) string {
 	fields := []string{r.PayeePayer, r.Message, r.Reference, r.Account}
 	for class, patterns := range classPatterns {
 		for _, f := range fields {

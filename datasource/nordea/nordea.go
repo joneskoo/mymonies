@@ -39,7 +39,7 @@ func FromFile(filename string) (datasource.File, error) {
 	r.Comma = '\t'
 	r.FieldsPerRecord = 14
 	_, _ = r.Read() // ignore first line
-	transactions := []*database.Record{}
+	transactions := []*database.Transaction{}
 	for {
 		r, err := r.Read()
 		if err == io.EOF {
@@ -60,12 +60,12 @@ func FromFile(filename string) (datasource.File, error) {
 type file struct {
 	filename     string
 	account      string
-	transactions []*database.Record
+	transactions []*database.Transaction
 }
 
-func (f file) Account() string                  { return f.account }
-func (f file) FileName() string                 { return filepath.Base(f.filename) }
-func (f file) Transactions() []*database.Record { return f.transactions }
+func (f file) Account() string                       { return f.account }
+func (f file) FileName() string                      { return filepath.Base(f.filename) }
+func (f file) Transactions() []*database.Transaction { return f.transactions }
 
 var fields = []string{
 	"Kirjauspäivä",
@@ -87,7 +87,7 @@ const dateFormat = "02.01.2006"
 
 var helsinki *time.Location
 
-func fromSlice(r []string) (rec database.Record, err error) {
+func fromSlice(r []string) (rec database.Transaction, err error) {
 	td, err := time.ParseInLocation(dateFormat, r[0], helsinki)
 	if err != nil {
 		return rec, fmt.Errorf("bad transaction date format: %v", err)
@@ -104,7 +104,7 @@ func fromSlice(r []string) (rec database.Record, err error) {
 	if err != nil {
 		return rec, fmt.Errorf("bad amount format: %v", err)
 	}
-	rec = database.Record{
+	rec = database.Transaction{
 		TransactionDate: td,
 		ValueDate:       vd,
 		PaymentDate:     pd,

@@ -16,5 +16,5 @@ type File interface {
 	Account() string
 
 	// Transactions returns the transaction records from the file.
-	Transactions() []*database.Record
+	Transactions() []*database.Transaction
 }

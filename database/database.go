@@ -26,9 +26,9 @@ type Database interface {
 	// ListTags lists the tags configured.
 	ListTags() ([]Tag, error)
 
-	// ListRecordsByAccount lists transactions. Any of the parameters may be empty
-	// to include all records.
-	ListRecordsByAccount(account, month, search string) ([]Record, error)
+	// ListTransactions lists transactions. The listing can be limited
+	// by specifying account, month or a text search.
+	ListTransactions(account, month, search string) ([]Transaction, error)
 
 	// SumTransactionsByTag returns the sum of transaction amounts by tag.
 	SumTransactionsByTag(account, month, search string) (map[string]float64, error)
@@ -43,14 +43,14 @@ type Database interface {
 // Import represents one transaction report imported from a file to
 // database.
 type Import struct {
-	ID       int       `json:"-"`
-	Filename string    `json:"filename,omitempty"`
-	Account  string    `json:"account,omitempty"`
-	Records  []*Record `json:"records,omitempty"`
+	ID           int            `json:"-"`
+	Filename     string         `json:"filename,omitempty"`
+	Account      string         `json:"account,omitempty"`
+	Transactions []*Transaction `json:"records,omitempty"`
 }
 
-// Record represents one account transaction record.
-type Record struct {
+// Transaction represents one account transaction record.
+type Transaction struct {
 	ID              int       `json:"id"`
 	TransactionDate time.Time `json:"transaction_date,omitempty"`
 	ValueDate       time.Time `json:"value_date,omitempty"`

@@ -1,4 +1,5 @@
-// Package postgres implements a PostgreSQL connection for mymonies.
+// Package postgres implements a mymonies database interface with backed by
+// PostgreSQL database.
 package postgres
 
 import (
@@ -12,7 +13,8 @@ import (
 	"github.com/lib/pq"
 )
 
-// New opens a new database connection.
+// New opens a new PostgreSQL database connection and verifies connection
+// by pinging the server.
 func New(conn string) (database.Database, error) {
 	db, err := sqlx.Connect("postgres", conn)
 	if err != nil {
@@ -74,22 +76,19 @@ func (db *postgres) CreateTables() error {
 	return txn.Commit()
 }
 
-// ListAccounts lists the accounts with data stored in the postgres.
 func (db *postgres) ListAccounts() ([]string, error) {
 	var accounts []string
 	err := db.Select(&accounts, "SELECT DISTINCT account from imports")
 	return accounts, err
 }
 
-// ListTags lists the tags stored in the postgres.
 func (db *postgres) ListTags() ([]database.Tag, error) {
 	var tags []database.Tag
 	err := db.Select(&tags, "SELECT name, patterns from tags ORDER BY name")
 	return tags, err
 }
 
-// ListRecordsByAccount lists the records stored in the postgres for account.
-func (db *postgres) ListRecordsByAccount(account, month, search string) (records []database.Record, err error) {
+func (db *postgres) ListTransactions(account, month, search string) (records []database.Transaction, err error) {
 	where, arg, err := transactionSearch(account, month, search)
 	if err != nil {
 		return nil, err
@@ -124,7 +123,6 @@ func (db *postgres) ListRecordsByAccount(account, month, search string) (records
 	return records, nil
 }
 
-// SumTransactionsByTag lists the records stored in the postgres for account.
 func (db *postgres) SumTransactionsByTag(account, month, search string) (map[string]float64, error) {
 	where, arg, err := transactionSearch(account, month, search)
 	if err != nil {
@@ -205,7 +203,7 @@ func (db *postgres) AddImport(data database.Import) error {
 
 	// Ensure all tags exist in postgres
 	tags := make(map[string]bool)
-	for _, r := range data.Records {
+	for _, r := range data.Transactions {
 		tags[r.Tag] = true
 	}
 	for tag := range tags {
@@ -224,7 +222,7 @@ func (db *postgres) AddImport(data database.Import) error {
 	}
 	defer stmt.Close()
 
-	for _, r := range data.Records {
+	for _, r := range data.Transactions {
 		_, err = stmt.Exec(importid, r.TransactionDate, r.ValueDate, r.PaymentDate,
 			r.Amount, r.PayeePayer, r.Account, r.BIC, r.Transaction, r.Reference,
 			r.PayerReference, r.Message, r.CardNumber, r.Tag)

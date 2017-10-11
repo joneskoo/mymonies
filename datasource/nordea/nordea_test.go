@@ -35,8 +35,8 @@ func TestFromFile(t *testing.T) {
 			file{
 				filename: "Tapahtumat_FI4612345600007890_20130808_20130808.txt",
 				account:  "FI4612345600007890",
-				transactions: []*database.Record{
-					&database.Record{
+				transactions: []*database.Transaction{
+					&database.Transaction{
 						TransactionDate: mustParseRFC3339("2015-03-23T00:00:00+02:00"),
 						ValueDate:       mustParseRFC3339("2015-03-22T00:00:00+02:00"),
 						PaymentDate:     mustParseRFC3339("2015-03-22T00:00:00+02:00"),
@@ -82,13 +82,13 @@ func Test_fromSlice(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantRec database.Record
+		wantRec database.Transaction
 		wantErr bool
 	}{
 		{
 			"valid",
 			args{[]string{"23.03.2015", "22.03.2015", "22.03.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Record{
+			database.Transaction{
 				TransactionDate: mustParseRFC3339("2015-03-23T00:00:00+02:00"),
 				ValueDate:       mustParseRFC3339("2015-03-22T00:00:00+02:00"),
 				PaymentDate:     mustParseRFC3339("2015-03-22T00:00:00+02:00"),
@@ -130,25 +130,25 @@ func Test_fromSlice(t *testing.T) {
 		{
 			"missing transaction date",
 			args{[]string{"", "22.03.2015", "22.03.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Record{},
+			database.Transaction{},
 			true,
 		},
 		{
 			"bad value date format",
 			args{[]string{"22.03.2015", "22.3.2015", "22.03.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Record{},
+			database.Transaction{},
 			true,
 		},
 		{
 			"bad payment date format",
 			args{[]string{"22.03.2015", "22.03.2015", "22.13.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Record{},
+			database.Transaction{},
 			true,
 		},
 		{
 			"invalid amount",
 			args{[]string{"", "22.03.2015", "22.03.2015", "invalid", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Record{},
+			database.Transaction{},
 			true,
 		},
 	}
