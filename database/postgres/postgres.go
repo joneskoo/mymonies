@@ -1,3 +1,4 @@
+// Package postgres implements a PostgreSQL connection for mymonies.
 package postgres
 
 import (
