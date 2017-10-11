@@ -93,22 +93,7 @@ func (db *postgres) ListTransactions(account, month, search string) (records []d
 	if err != nil {
 		return nil, err
 	}
-	nstmt, err := db.PrepareNamed(`SELECT
-		records.id AS id,
-		transaction_date,
-		value_date,
-		payment_date,
-		amount,
-		payee_payer,
-		records.account AS account,
-		bic,
-		transaction,
-		reference,
-		payer_reference,
-		message,
-		card_number,
-		tag
-	FROM records
+	nstmt, err := db.PrepareNamed(`SELECT * FROM records
 	LEFT OUTER JOIN imports ON records.import_id = imports.id
 	WHERE ` + where + `
 	ORDER BY transaction_date, records.id`)

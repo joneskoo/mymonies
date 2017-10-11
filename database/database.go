@@ -43,7 +43,7 @@ type Database interface {
 // Import represents one transaction report imported from a file to
 // database.
 type Import struct {
-	ID           int            `json:"-"`
+	ID           int            `json:"import_id"`
 	Filename     string         `json:"filename,omitempty"`
 	Account      string         `json:"account,omitempty"`
 	Transactions []*Transaction `json:"records,omitempty"`
@@ -65,6 +65,7 @@ type Transaction struct {
 	Message         string    `json:"message,omitempty"`
 	CardNumber      string    `json:"card_number,omitempty"`
 	Tag             string    `json:"tag,omitempty"`
+	Import
 }
 
 // Tag represents a transaction tag
