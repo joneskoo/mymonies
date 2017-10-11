@@ -3,11 +3,6 @@ package database
 
 import (
 	"time"
-
-	"github.com/lib/pq"
-
-	// Load postgresql driver
-	_ "github.com/lib/pq"
 )
 
 // Database represents the storage for mymonies data.
@@ -71,5 +66,5 @@ type Transaction struct {
 // Tag represents a transaction tag
 type Tag struct {
 	Name     string
-	Patterns pq.StringArray
+	Patterns []string
 }

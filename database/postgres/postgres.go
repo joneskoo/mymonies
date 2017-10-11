@@ -11,6 +11,8 @@ import (
 	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/joneskoo/mymonies/database"
 	"github.com/lib/pq"
+	// Load postgresql driver
+	_ "github.com/lib/pq"
 )
 
 // New opens a new PostgreSQL database connection and verifies connection
@@ -84,8 +86,20 @@ func (db *postgres) ListAccounts() ([]string, error) {
 
 func (db *postgres) ListTags() ([]database.Tag, error) {
 	var tags []database.Tag
-	err := db.Select(&tags, "SELECT name, patterns from tags ORDER BY name")
-	return tags, err
+	rows, err := db.Queryx("SELECT name, patterns from tags ORDER BY name")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var t database.Tag
+		err := rows.Scan(&t.Name, (*pq.StringArray)(&t.Patterns))
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, t)
+	}
+	return tags, rows.Err()
 }
 
 func (db *postgres) ListTransactions(account, month, search string) (records []database.Transaction, err error) {
