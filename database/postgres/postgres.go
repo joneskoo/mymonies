@@ -108,16 +108,18 @@ func (db *postgres) ListTransactions(account, month, search string) (records []d
 		return nil, err
 	}
 	q.orderBy = "transaction_date, records.id"
-	nstmt, err := db.PrepareNamed(q.SQL())
+	rows, err := db.NamedQuery(q.SQL(), arg)
 	if err != nil {
 		return nil, err
 	}
-	defer nstmt.Close()
+	defer rows.Close()
 
-	if err := nstmt.Select(&records, arg); err != nil {
-		return nil, err
+	for rows.Next() {
+		var t database.Transaction
+		_ = rows.StructScan(&t)
+		records = append(records, t)
 	}
-	return records, nil
+	return records, rows.Err()
 }
 
 func (db *postgres) SumTransactionsByTag(account, month, search string) (map[string]float64, error) {
@@ -128,24 +130,17 @@ func (db *postgres) SumTransactionsByTag(account, month, search string) (map[str
 	q.columns = []string{"tag", "sum(amount)"}
 	q.groupBy = "1"
 
-	nstmt, err := db.PrepareNamed(q.SQL())
-	if err != nil {
-		return nil, err
-	}
-	defer nstmt.Close()
-
-	rows, err := nstmt.Query(arg)
+	rows, err := db.NamedQuery(q.SQL(), arg)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	tags := make(map[string]float64)
 	for rows.Next() {
 		var tag string
 		var amount float64
-		if err := rows.Scan(&tag, &amount); err != nil {
-			return nil, err
-		}
+		_ = rows.Scan(&tag, &amount)
 		tags[tag] = amount
 	}
 	return tags, rows.Err()
