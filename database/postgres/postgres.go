@@ -103,14 +103,12 @@ func (db *postgres) ListTags() ([]database.Tag, error) {
 }
 
 func (db *postgres) ListTransactions(account, month, search string) (records []database.Transaction, err error) {
-	where, arg, err := transactionSearch(account, month, search)
+	q, arg, err := transactionSearch(account, month, search)
 	if err != nil {
 		return nil, err
 	}
-	nstmt, err := db.PrepareNamed(`SELECT * FROM records
-	LEFT OUTER JOIN imports ON records.import_id = imports.id
-	WHERE ` + where + `
-	ORDER BY transaction_date, records.id`)
+	q.orderBy = "transaction_date, records.id"
+	nstmt, err := db.PrepareNamed(q.SQL())
 	if err != nil {
 		return nil, err
 	}
@@ -123,14 +121,14 @@ func (db *postgres) ListTransactions(account, month, search string) (records []d
 }
 
 func (db *postgres) SumTransactionsByTag(account, month, search string) (map[string]float64, error) {
-	where, arg, err := transactionSearch(account, month, search)
+	q, arg, err := transactionSearch(account, month, search)
 	if err != nil {
 		return nil, err
 	}
+	q.columns = []string{"tag", "sum(amount)"}
+	q.groupBy = "1"
 
-	nstmt, err := db.PrepareNamed(`SELECT tag, sum(amount) FROM records
-	LEFT OUTER JOIN imports ON records.import_id = imports.id
-	WHERE ` + where + " GROUP BY 1")
+	nstmt, err := db.PrepareNamed(q.SQL())
 	if err != nil {
 		return nil, err
 	}
@@ -153,36 +151,41 @@ func (db *postgres) SumTransactionsByTag(account, month, search string) (map[str
 	return tags, rows.Err()
 }
 
-func transactionSearch(account, month, search string) (string, map[string]interface{}, error) {
-	where := []string{"records.import_id = imports.id"}
-	andWhere := func(cond string) {
+func transactionSearch(account, month, search string) (selectQuery, map[string]interface{}, error) {
+	var where []string
+	and := func(cond string) {
 		where = append(where, cond)
 	}
 
 	if account != "" {
-		andWhere("imports.account = :account")
+		and("imports.account = :account")
 	}
 	var startDate, endDate time.Time
-	var err error
 	if month != "" {
+		var err error
 		startDate, err = time.Parse("2006-01", month)
 		if err != nil {
-			return "", nil, err
+			return selectQuery{}, nil, err
 		}
 		endDate = startDate.AddDate(0, 1, -1)
-		andWhere("records.transaction_date BETWEEN :start AND :end")
+		and("records.transaction_date BETWEEN :start AND :end")
 	}
 	if search != "" {
-		andWhere(":search IN (payee_payer, records.account, transaction, reference, payer_reference, message)")
+		and(":search IN (payee_payer, records.account, transaction, reference, payer_reference, message)")
 	}
 
+	q := selectQuery{
+		columns: []string{"*"},
+		from:    "records LEFT OUTER JOIN imports ON records.import_id = imports.id",
+		where:   where,
+	}
 	arg := map[string]interface{}{
 		"account": account,
 		"search":  search,
 		"start":   startDate,
 		"end":     endDate,
 	}
-	return strings.Join(where, " AND "), arg, nil
+	return q, arg, nil
 }
 
 // AddImport saves data into postgres atomically.
@@ -247,4 +250,30 @@ func (db *postgres) AddImport(data database.Import) error {
 func (db *postgres) SetRecordTag(id int, tag string) error {
 	_, err := db.Exec("UPDATE records SET tag = $1 WHERE id = $2", tag, id)
 	return err
+}
+
+type selectQuery struct {
+	columns []string
+	from    string
+	where   []string
+	groupBy string
+	orderBy string
+}
+
+func (q selectQuery) SQL() string {
+	columns := "SELECT " + strings.Join(q.columns, ", ")
+	var from, where, groupBy, orderBy string
+	if len(q.from) > 0 {
+		from = " FROM " + q.from
+	}
+	if len(q.where) > 0 {
+		where = " WHERE " + strings.Join(q.where, " AND ")
+	}
+	if len(q.groupBy) > 0 {
+		groupBy = " GROUP BY " + q.groupBy
+	}
+	if len(q.orderBy) > 0 {
+		orderBy = " ORDER BY " + q.orderBy
+	}
+	return strings.Join([]string{columns, from, where, groupBy, orderBy}, "")
 }
