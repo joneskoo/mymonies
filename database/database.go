@@ -6,7 +6,6 @@ import (
 )
 
 // Database represents the storage for mymonies data.
-
 type Database interface {
 	// Close closes the connection to the database.
 	// Database connection is normally called only at program exit.
@@ -22,6 +21,8 @@ type Database interface {
 	// ListTags lists the tags configured.
 	ListTags() ([]Tag, error)
 
+	// Transactions is a lazily executed database query. The set of transactions
+	// can be filtered further before the query is executed.
 	Transactions() TransactionSet
 
 	// AddImport saves the transaction data to database.
@@ -31,11 +32,23 @@ type Database interface {
 	SetRecordTag(id int, tag string) error
 }
 
+// TransactionSet is a filterable set of transactions.
 type TransactionSet interface {
+	// Account filters to only include transactions from account.
 	Account(account string) TransactionSet
+
+	// Month filters to only include transactions during a given month.
 	Month(month string) TransactionSet
+
+	// Search filters to only include transactions containing the
+	// query exactly as a value of a field.
 	Search(query string) TransactionSet
+
+	// Records executes the query and returns matching transactions.
 	Records() ([]Transaction, error)
+
+	// SumTransactionsByTag executes the query and returns total amounts of
+	// transactions by tag.
 	SumTransactionsByTag() (map[string]float64, error)
 }
 
