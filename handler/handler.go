@@ -56,14 +56,24 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		month = time.Now().AddDate(0, -1, 0).Format("2006-01")
 	}
 
-	transactions, err := h.db.ListTransactions(account, month, q)
+	transactions := h.db.Transactions()
+	if account != "" {
+		transactions = transactions.Account(account)
+	}
+	if month != "" {
+		transactions = transactions.Month(month)
+	}
+	if q != "" {
+		transactions = transactions.Search(q)
+	}
+	records, err := transactions.Records()
 	if err != nil {
 		log.Printf("Error fetching transactions: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
-	tags, err := h.db.SumTransactionsByTag(account, month, q)
+	tags, err := transactions.SumTransactionsByTag()
 	if err != nil {
 		log.Printf("Error fetching tags: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)
@@ -75,7 +85,7 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		Transactions []database.Transaction
 		Tags         map[string]float64
 		Month        string
-	}{account, transactions, tags, month}
+	}{account, records, tags, month}
 	h.render(w, r, "list.html", data)
 }
 
