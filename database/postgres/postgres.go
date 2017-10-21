@@ -86,14 +86,14 @@ func (db *postgres) ListAccounts() ([]string, error) {
 
 func (db *postgres) ListTags() ([]database.Tag, error) {
 	var tags []database.Tag
-	rows, err := db.Queryx("SELECT name, patterns from tags ORDER BY name")
+	rows, err := db.Queryx("SELECT id, name, patterns from tags ORDER BY name")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var t database.Tag
-		err := rows.Scan(&t.Name, (*pq.StringArray)(&t.Patterns))
+		err := rows.Scan(&t.ID, &t.Name, (*pq.StringArray)(&t.Patterns))
 		if err != nil {
 			return nil, err
 		}

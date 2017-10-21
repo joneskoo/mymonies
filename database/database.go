@@ -65,6 +65,7 @@ type Transaction struct {
 
 // Tag represents a transaction tag
 type Tag struct {
-	Name     string
-	Patterns []string
+	ID       int      `json:"id"`
+	Name     string   `json:"name,omitempty"`
+	Patterns []string `json:"patterns,omitempty"`
 }

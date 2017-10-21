@@ -15,11 +15,9 @@
 
         <h1>Luokat</h1>
 
-        <ul class="list">
-            {{range tags}}
-            <li><a href="/tags/{{.Name}}">{{.Name}}</a> ({{len .Patterns}} liitosta)</li>
-            {{end}}
-        </ul>
+        {{range tags}}
+        <a class="btn btn-info" href="/tags/{{.ID}}" role="button">{{.Name}}</a></li>
+        {{end}}
 
     </div>
     </body>
