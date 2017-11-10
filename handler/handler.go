@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joneskoo/mymonies/database"
@@ -16,6 +17,7 @@ func New(db database.Database) http.Handler {
 	mux.HandleFunc("/", h.accounts)
 	mux.HandleFunc("/transactions", h.listTransactions)
 	mux.HandleFunc("/transactions/", h.updateTag)
+	mux.HandleFunc("/tags/", h.tagDetails)
 	return &h
 }
 
@@ -29,7 +31,30 @@ func (h handler) PreviousMonth() string {
 }
 
 func (h handler) accounts(w http.ResponseWriter, r *http.Request) {
+
 	h.render(w, r, "accounts.html", h)
+}
+
+func (h handler) tagDetails(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/tags/"))
+	if err != nil {
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+
+	tags, err := h.db.ListTags()
+	if err != nil {
+		log.Printf("failed to get tags: %v", err)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+	for _, t := range tags {
+		if t.ID == id {
+			h.render(w, r, "tag.html", t)
+			return
+		}
+	}
+	http.Error(w, "", http.StatusNotFound)
 }
 
 func (h handler) updateTag(w http.ResponseWriter, r *http.Request) {
