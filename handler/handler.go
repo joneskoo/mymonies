@@ -24,6 +24,10 @@ type handler struct {
 	*http.ServeMux
 }
 
+func (h handler) PreviousMonth() string {
+	return time.Now().AddDate(0, -1, 0).Format("2006-01")
+}
+
 func (h handler) accounts(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, "accounts.html", h)
 }
@@ -51,10 +55,6 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	account := r.FormValue("account")
 	month := r.FormValue("month")
 	q := r.FormValue("q")
-	if month == "" {
-		// Default: previous month
-		month = time.Now().AddDate(0, -1, 0).Format("2006-01")
-	}
 
 	transactions := h.db.Transactions()
 	if account != "" {

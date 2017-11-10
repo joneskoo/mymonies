@@ -8,8 +8,9 @@
         <h1>Tilit</h1>
 
         <ul class="list">
-            {{range accounts}}
-            <li><a href="/transactions?account={{.}}">{{.}}</a></li>
+            {{$month := .PreviousMonth}}
+            {{range $account := accounts}}
+            <li><a href="/transactions?account={{$account}}&month={{$month}}">{{$account}}</a></li>
             {{end}}
         </ul>
 
