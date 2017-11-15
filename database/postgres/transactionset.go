@@ -13,12 +13,19 @@ var _ database.TransactionSet = transactionSet{}
 
 type transactionSet struct {
 	db        *sqlx.DB
+	recordID  int
 	account   string
 	search    string
 	startDate time.Time
 	endDate   time.Time
 	err       error
 	selectQuery
+}
+
+func (q transactionSet) Id(id int) database.TransactionSet {
+	q.AndWhere("records.id = :record_id")
+	q.recordID = id
+	return q
 }
 
 func (q transactionSet) Account(account string) database.TransactionSet {
@@ -52,7 +59,7 @@ func (q transactionSet) Records() ([]database.Transaction, error) {
 	if q.err != nil {
 		return nil, q.err
 	}
-	q.Columns = []string{"*"}
+	q.Columns = []string{"records.*"}
 	q.From = "records LEFT OUTER JOIN imports ON records.import_id = imports.id"
 	q.OrderBy = "transaction_date, records.id"
 	fmt.Printf("SQL: %v\n", q.SQL())
@@ -98,9 +105,10 @@ func (q transactionSet) SumTransactionsByTag() (map[string]float64, error) {
 
 func (q transactionSet) arg() map[string]interface{} {
 	return map[string]interface{}{
-		"account": q.account,
-		"search":  q.search,
-		"start":   q.startDate,
-		"end":     q.endDate,
+		"record_id": q.recordID,
+		"account":   q.account,
+		"search":    q.search,
+		"start":     q.startDate,
+		"end":       q.endDate,
 	}
 }

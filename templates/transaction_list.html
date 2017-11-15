@@ -88,7 +88,7 @@ function updateTag(element) {
             <tbody>
             {{ range .Transactions }}{{ $rec := .}}
             <tr class="{{ if gt .Amount 0.0 }}table-success{{end}}">
-                    <td>{{ .TransactionDate | date}}</td>
+                    <td><a href="/transactions/{{ $rec.ID }}">{{ .TransactionDate | date}}</a></td>
                     <!-- <td>{{ .ValueDate }}</td>
                     <td>{{ .PaymentDate }}</td> -->
                     <td>{{ .PayeePayer }}</td>

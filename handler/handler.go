@@ -16,7 +16,16 @@ func New(db database.Database) http.Handler {
 	h := handler{db, mux}
 	mux.HandleFunc("/", h.accounts)
 	mux.HandleFunc("/transactions", h.listTransactions)
-	mux.HandleFunc("/transactions/", h.updateTag)
+	mux.HandleFunc("/transactions/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			h.transactionDetails(w, r)
+		case http.MethodPost:
+			h.updateTag(w, r)
+		default:
+			http.Error(w, "Not found", http.StatusNotFound)
+		}
+	})
 	mux.HandleFunc("/tags/", h.tagDetails)
 	return &h
 }
@@ -76,6 +85,22 @@ func (h handler) updateTag(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h handler) transactionDetails(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/transactions/"))
+	if err != nil {
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+
+	transactions, err := h.db.Transactions().Id(id).Records()
+	if err != nil {
+		log.Printf("failed to get transaction: %v", err)
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+	h.render(w, r, "transaction_detail.html", transactions[0])
+}
+
 func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	account := r.FormValue("account")
 	month := r.FormValue("month")
@@ -111,7 +136,7 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		Tags         map[string]float64
 		Month        string
 	}{account, records, tags, month}
-	h.render(w, r, "list.html", data)
+	h.render(w, r, "transaction_list.html", data)
 }
 
 func (h handler) render(w http.ResponseWriter, r *http.Request, templateFile string, data interface{}) {

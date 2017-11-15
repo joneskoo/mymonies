@@ -34,6 +34,9 @@ type Database interface {
 
 // TransactionSet is a filterable set of transactions.
 type TransactionSet interface {
+	// Id filters to only include a specific transaction by id.
+	Id(id int) TransactionSet
+
 	// Account filters to only include transactions from account.
 	Account(account string) TransactionSet
 
