@@ -60,7 +60,6 @@ func importFile(filename string, db database.Database) error {
 
 	switch ext {
 	case ".pdf":
-		fmt.Println("PDF")
 		f, err = pdf.FromFile(filename)
 	case ".tsv":
 		fallthrough
