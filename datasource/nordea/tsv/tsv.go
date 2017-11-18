@@ -1,5 +1,5 @@
-// Package nordea implements Nordea bank TSV transaction record data source.
-package nordea
+// Package tsv implements Nordea bank TSV transaction record data source.
+package tsv
 
 import (
 	"bytes"

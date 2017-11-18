@@ -7,57 +7,96 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/joneskoo/mymonies/database"
 	"github.com/joneskoo/mymonies/database/postgres"
-	"github.com/joneskoo/mymonies/datasource/nordea"
+	"github.com/joneskoo/mymonies/datasource"
+	"github.com/joneskoo/mymonies/datasource/nordea/pdf"
+	"github.com/joneskoo/mymonies/datasource/nordea/tsv"
 )
 
 func main() {
-	conn := flag.String("postgres", "database=mymonies", "PostgreSQL connection string")
+	conn := flag.String("postgres", "", "PostgreSQL connection string, e.g. database=mymonies")
 	flag.Parse()
 
 	log.SetPrefix("[mymonies] ")
 	log.SetFlags(log.Lshortfile)
 
-	if flag.NArg() != 1 {
+	if flag.NArg() == 0 {
 		flag.Usage()
+		os.Exit(2)
 	}
-	tsvFile := flag.Arg(0)
 
-	file, err := nordea.FromFile(tsvFile)
-	if err != nil {
-		log.Fatal(err)
+	var db database.Database
+	if *conn != "" {
+		log.Println("Connecting to database…")
+		var err error
+		db, err = postgres.New(*conn)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := db.CreateTables(); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		log.Println("No database URL set, data will not be saved")
 	}
-	for _, r := range file.Transactions() {
+
+	for _, filename := range flag.Args() {
+		err := importFile(filename, db)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	log.Println("All done")
+}
+
+func importFile(filename string, db database.Database) error {
+	ext := filepath.Ext(filename)
+	var f datasource.File
+	var err error
+
+	switch ext {
+	case ".pdf":
+		fmt.Println("PDF")
+		f, err = pdf.FromFile(filename)
+	case ".tsv":
+		fallthrough
+	case ".txt":
+		f, err = tsv.FromFile(filename)
+	default:
+		return fmt.Errorf("unsupported file type extension %q", ext)
+	}
+
+	if err != nil {
+		return fmt.Errorf("parsing %v: %v", filename, err)
+	}
+
+	for _, r := range f.Transactions() {
 		r.Tag = classify(*r)
 	}
 
-	log.Println("Connecting to database…")
-	db, err := postgres.New(*conn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := db.CreateTables(); err != nil {
-		log.Fatal(err)
-	}
+	// fmt.Printf("Account: %q File: %q\n", f.Account(), f.FileName())
+	// for _, tx := range f.Transactions() {
+	// 	fmt.Printf("%v %12v %-40v %8.2f %v\n", tx.TransactionDate.Format("02.01.2006"), tx.Transaction, tx.PayeePayer, tx.Amount, tx.Tag)
+	// }
+	// fmt.Println("---------------------------")
 
+	if db == nil || len(f.Transactions()) == 0 {
+		return nil
+	}
+	log.Println("Saving to database")
 	err = db.AddImport(database.Import{
-		Account:      file.Account(),
-		Filename:     file.FileName(),
-		Transactions: file.Transactions(),
+		Account:      f.Account(),
+		Filename:     f.FileName(),
+		Transactions: f.Transactions(),
 	})
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
-	accounts, err := db.ListAccounts()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Have accounts in database:", accounts)
-
+	return nil
 }
 
 type pattern map[string][]string

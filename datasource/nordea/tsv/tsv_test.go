@@ -1,4 +1,4 @@
-package nordea
+package tsv
 
 import (
 	"reflect"

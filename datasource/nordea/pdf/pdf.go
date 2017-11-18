@@ -1,9 +1,8 @@
-package main
+package pdf
 
 import (
 	"fmt"
 	"math"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -17,21 +16,12 @@ import (
 	"rsc.io/pdf"
 )
 
-func main() {
-	f, err := FromFile(os.Args[1])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "FAILED: %v", err)
-		os.Exit(2)
-	}
-	fmt.Printf("Account: %q File: %q\n", f.Account(), f.FileName())
-	for _, tx := range f.Transactions() {
-		fmt.Printf("%v %12v %-40v %8.2f\n", tx.TransactionDate.Format("02.01.2006"), tx.Transaction, tx.PayeePayer, tx.Amount)
-	}
-}
-
-var transactionPattern = regexp.MustCompile(`^(?P<Date>\d+\.(\d+).) +(?P<InterestDate>\d+\.(\d+).) +(?P<Transaction>[^ ]{12}) +(?P<Payee>.*[^ ]) +(?P<Amount>\d+\.\d\d-?) *$`)
-var accountPattern = regexp.MustCompile(`^(?P<Account>\d{16}/[A-ZÅÄÖ ]*[A-ZÅÄÖ]) *$`)
-var totalPattern = regexp.MustCompile(`^ *LASKUN LOPPUSALDO YHTEENSÄ *(?P<DueDate>\d\d\.\d\d\.\d\d) *(?P<BillAmount>\d+\.\d\d) *$`)
+var (
+	accountPattern       = regexp.MustCompile(`^(?P<Account>\d{16}/[A-ZÅÄÖ ]*[A-ZÅÄÖ]) *$`)
+	billTotalPattern     = regexp.MustCompile(`^ *LASKUN LOPPUSALDO YHTEENSÄ *(?P<DueDate>\d\d\.\d\d\.\d\d) *(?P<BillTotal>[\d ]+\.\d\d) *$`)
+	paymentsTotalPattern = regexp.MustCompile(`^ *KORTTITAPAHTUMAT YHTEENSÄ *(?P<PaymentsTotal>[\d ]+\.\d\d) *$`)
+	transactionPattern   = regexp.MustCompile(`^(?P<Date>\d+\.\d+\.) +(?P<InterestDate>\d+\.\d+\.) +(?P<Transaction>[^ ]{12}) +(?P<Payee>.*[^ ]) +(?P<Amount>\d+\.\d\d-?) *$`)
+)
 
 type bill struct {
 	file         string
@@ -47,84 +37,58 @@ func (b bill) Transactions() []*database.Transaction { return b.transactions }
 func FromFile(filename string) (datasource.File, error) {
 	lines, err := extractText(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract text from PDF: %v", err)
 	}
 	var account string
-	var total, sum float64
+	var billTotal float64
 	var transactions []*database.Transaction
-	var due time.Time
+	var dueDate time.Time
 	for _, line := range lines {
-		match := accountPattern.FindStringSubmatch(line)
-		if match != nil {
+		switch {
+		case accountPattern.MatchString(line):
+			match := accountPattern.FindStringSubmatch(line)
 			account = match[1]
 			account = "************" + account[12:]
-			continue
-		}
-
-		match = totalPattern.FindStringSubmatch(line)
-		if match != nil {
-			var err error
-			total, err = strconv.ParseFloat(match[2], 64)
+		case billTotalPattern.MatchString(line):
+			match := billTotalPattern.FindStringSubmatch(line)
+			due, _ := match[1], match[2]
+			dueDate, err = time.Parse("02.01.06", due)
 			if err != nil {
 				return nil, err
 			}
-			due, err = time.Parse("02.01.06", match[1])
+		case paymentsTotalPattern.MatchString(line):
+			match := paymentsTotalPattern.FindStringSubmatch(line)
+			total := match[1]
+			billTotal, err = parseAmount(total)
 			if err != nil {
 				return nil, err
 			}
-
-			continue
+		case transactionPattern.MatchString(line):
+			match := transactionPattern.FindStringSubmatch(line)
+			date, interestDate, transaction, payee, amount := match[1], match[2], match[3], match[4], match[5]
+			tx := database.Transaction{}
+			if tx.TransactionDate, err = time.Parse("02.01.", date); err != nil {
+				return nil, err
+			}
+			if tx.ValueDate, err = time.Parse("02.01.", interestDate); err != nil {
+				return nil, err
+			}
+			tx.Transaction = transaction
+			tx.PayeePayer = payee
+			if tx.Amount, err = parseAmount(amount); err != nil {
+				return nil, err
+			}
+			transactions = append(transactions, &tx)
 		}
-
-		match = transactionPattern.FindStringSubmatch(line)
-		if match == nil {
-			continue
-		}
-		result := make(map[string]string)
-		for i, name := range transactionPattern.SubexpNames() {
-			result[name] = match[i]
-		}
-		if strings.HasSuffix(result["Amount"], "-") {
-			result["Amount"] = "-" + result["Amount"][:len(result["Amount"])-1]
-		}
-		amount, err := strconv.ParseFloat(result["Amount"], 64)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse amount %q on line %q", result["Amount"], line)
-		}
-
-		txdate, err := time.Parse("02.01.", result["Date"])
-		if err != nil {
-			return nil, err
-		}
-		txdate = txdate.AddDate(due.Year(), 0, 0)
-		valdate, err := time.Parse("02.01.", result["InterestDate"])
-		if err != nil {
-			return nil, err
-		}
-		transactions = append(transactions, &database.Transaction{
-			TransactionDate: txdate,
-			ValueDate:       valdate,
-			Transaction:     result["Transaction"],
-			PayeePayer:      result["Payee"],
-			Amount:          amount,
-		})
-		sum += amount
 	}
+	sum := 0.0
 	for _, tx := range transactions {
-		// fixYear fixes timestamp t be in the year window before reference
-		fixYear := func(t time.Time, reference time.Time) time.Time {
-			t = t.AddDate(reference.Year()-t.Year(), 0, 0)
-			if t.After(reference) {
-				t = t.AddDate(-1, 0, 0)
-			}
-			return t
-		}
-		tx.TransactionDate = fixYear(tx.TransactionDate, due)
-		tx.ValueDate = fixYear(tx.ValueDate, due)
+		sum += tx.Amount
+		tx.TransactionDate = fixYear(tx.TransactionDate, dueDate)
+		tx.ValueDate = fixYear(tx.ValueDate, dueDate)
 	}
-	sum = math.Trunc(sum*100) / 100
-	if total != sum {
-		return nil, fmt.Errorf("sum of transaction amounts %.2f != bill total %.2f", sum, total)
+	if math.Abs(billTotal-sum) >= 0.01 {
+		return nil, fmt.Errorf("sum of transaction amounts %.2f != bill total %.2f", sum, billTotal)
 	}
 	return bill{account: account, file: filename, transactions: transactions}, nil
 }
@@ -171,4 +135,25 @@ func extractText(file string) ([]string, error) {
 		}
 	}
 	return lines, nil
+}
+
+func parseAmount(amount string) (float64, error) {
+	amount = strings.Replace(amount, " ", "", -1)
+	if strings.HasSuffix(amount, "-") {
+		amount = "-" + amount[:len(amount)-1]
+	}
+	res, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return 0.0, err
+	}
+	return res, nil
+}
+
+// fixYear fixes timestamp t be in the year window before reference
+func fixYear(t time.Time, reference time.Time) time.Time {
+	t = t.AddDate(reference.Year()-t.Year(), 0, 0)
+	if t.After(reference) {
+		t = t.AddDate(-1, 0, 0)
+	}
+	return t
 }
