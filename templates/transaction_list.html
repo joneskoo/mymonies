@@ -70,7 +70,8 @@ function updateTag(element) {
             <input type="hidden" value="{{.Account}}" name="account">
             <input type="month" value="{{.Month}}" name="month">
             <input type="submit">
-          </form>
+            <a href="?account={{.Account}}">Näytä kaikki</a>
+        </form>
 
         <div id="expenses" style="width: 400px; height: 200px; float: left;"></div>
         <div id="incomes" style="width: 400px; height: 200px; float: left;"></div>
