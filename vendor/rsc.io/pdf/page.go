@@ -401,6 +401,12 @@ type gstate struct {
 	CTM   matrix
 }
 
+var fonts map[string]Font
+
+func init() {
+	fonts = make(map[string]Font)
+}
+
 // Content returns the page's content.
 func (p Page) Content() Content {
 	strm := p.V.Key("Contents")
@@ -522,7 +528,10 @@ func (p Page) Content() Content {
 				panic("bad TL")
 			}
 			f := args[0].Name()
-			g.Tf = p.Font(f)
+			if _, ok := fonts[f]; !ok {
+				fonts[f] = p.Font(f)
+			}
+			g.Tf = fonts[f]
 			enc = g.Tf.Encoder()
 			if enc == nil {
 				println("no cmap for", f)
