@@ -79,12 +79,12 @@ func (q transactionSet) Records() ([]database.Transaction, error) {
 
 }
 
-func (q transactionSet) SumTransactionsByTag() (map[string]float64, error) {
+func (q transactionSet) SumTransactionsByTag() (map[int]float64, error) {
 	if q.err != nil {
 		return nil, q.err
 	}
 	q.From = "records LEFT OUTER JOIN imports ON records.import_id = imports.id"
-	q.Columns = []string{"tag", "sum(amount)"}
+	q.Columns = []string{"tag_id", "sum(amount)"}
 	q.GroupBy = "1"
 	fmt.Printf("SQL: %v\n", q.SQL())
 	rows, err := q.db.NamedQuery(q.SQL(), q.arg())
@@ -92,15 +92,14 @@ func (q transactionSet) SumTransactionsByTag() (map[string]float64, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	tags := make(map[string]float64)
+	tags := make(map[int]float64)
 	for rows.Next() {
-		var tag string
+		var tag int
 		var amount float64
 		_ = rows.Scan(&tag, &amount)
 		tags[tag] = amount
 	}
 	return tags, rows.Err()
-
 }
 
 func (q transactionSet) arg() map[string]interface{} {

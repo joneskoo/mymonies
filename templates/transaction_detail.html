@@ -14,13 +14,11 @@
         <tr><td>Account</td><td>{{.Account}}</td></tr>
         <tr><td>BIC</td><td>{{.BIC}}</td></tr>
         <tr><td>Amount</td><td>{{.Amount | printf "%.2f"}}</td></tr>
-        <tr><td>Tag</td><td>{{.Tag}}</td></tr>
 	<tr><td>Transaction</td><td>{{.Transaction}}</td></tr>
 	<tr><td>Reference</td><td><a href="/transactions?q={{.Reference}}">{{.Reference}}</a></td></tr>
 	<tr><td>PayerReference</td><td><a href="/transactions?q={{.PayerReference}}">{{.PayerReference}}</a></td></tr>
 	<tr><td>Message</td><td>{{.Message}}</td></tr>
 	<tr><td>CardNumber</td><td>{{.CardNumber}}</td></tr>
-	<tr><td>Tag</td><td>{{.Tag}}</td></tr>
 	<tr><td>Source</td><td>Import #{{.Import.ID}} ({{.Import.Filename}})</td></tr>
        </tbody>
 

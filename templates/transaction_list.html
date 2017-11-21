@@ -43,7 +43,7 @@ function updateTag(element) {
 
     var formData = new FormData();
     formData.append('id', id);
-    formData.append('tag', element.value);
+    formData.append('tag_id', element.value);
 
     let onSuccess = () => console.log(`Successfully updated tag ${id} tag to ${element.value}`);
     let onError = (err) => console.log(`Failed to update tag ${id} tag: ${err}`);
@@ -96,8 +96,9 @@ function updateTag(element) {
                     <td style="text-align: right">{{ .Amount | printf "%.2f"}}</td>
 
                     <td><select id="rec{{$rec.ID}}" class="form-control" onchange="updateTag(this)">
+                        <option value="0" {{if eq $rec.TagID 0}} selected="true"{{end}}>--</option>
                         {{range $t := tags}}
-                            <option{{if eq $t.Name $rec.Tag}} selected="true"{{end}}>{{$t.Name}}</option>
+                            <option value="{{$t.ID}}"{{if eq $t.ID $rec.TagID}} selected="true"{{end}}>{{$t.Name}}</option>
                         {{end}}
                     </select>
                     </td>

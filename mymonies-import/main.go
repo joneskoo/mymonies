@@ -73,10 +73,6 @@ func importFile(filename string, db database.Database) error {
 		return fmt.Errorf("parsing %v: %v", filename, err)
 	}
 
-	for _, r := range f.Transactions() {
-		r.Tag = classify(*r)
-	}
-
 	// fmt.Printf("Account: %q File: %q\n", f.Account(), f.FileName())
 	// for _, tx := range f.Transactions() {
 	// 	fmt.Printf("%v %12v %-40v %8.2f %v\n", tx.TransactionDate.Format("02.01.2006"), tx.Transaction, tx.PayeePayer, tx.Amount, tx.Tag)

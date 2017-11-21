@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/joneskoo/mymonies/database"
+	"github.com/mholt/binding"
 )
 
 func New(db database.Database) http.Handler {
@@ -66,18 +67,31 @@ func (h handler) tagDetails(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "", http.StatusNotFound)
 }
 
+type updateTagRequest struct {
+	id  int
+	tag int
+}
+
+func (utr *updateTagRequest) FieldMap(*http.Request) binding.FieldMap {
+	return binding.FieldMap{
+		&utr.id:  "id",
+		&utr.tag: "tag_id",
+	}
+}
+
 func (h handler) updateTag(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 
-	id, err := strconv.Atoi(r.FormValue("id"))
+	utr := new(updateTagRequest)
+	err := binding.Bind(r, utr)
 	if err != nil {
-		log.Printf("updateTag: failed to convert id %q to integer", r.FormValue("id"))
-		http.Error(w, "Form value of id could not be parsed as integer", http.StatusBadRequest)
+		log.Printf("bad request updating tag: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	tag := r.FormValue("tag")
 
-	if err := h.db.SetRecordTag(id, tag); err != nil {
+	if err := h.db.SetRecordTag(utr.id, utr.tag); err != nil {
+		log.Printf("SetRecordTag(%d, %d) failed: %v", utr.id, utr.tag, err)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
@@ -101,21 +115,38 @@ func (h handler) transactionDetails(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, "transaction_detail.html", transactions[0])
 }
 
+type listTransactionsRequest struct {
+	account string
+	month   string
+	query   string
+}
+
+func (ltr *listTransactionsRequest) FieldMap(*http.Request) binding.FieldMap {
+	return binding.FieldMap{
+		&ltr.account: "account",
+		&ltr.month:   "month",
+		&ltr.query:   "q",
+	}
+}
+
 func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
-	account := r.FormValue("account")
-	month := r.FormValue("month")
-	q := r.FormValue("q")
+	ltr := new(listTransactionsRequest)
+	if err := binding.Bind(r, ltr); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	transactions := h.db.Transactions()
-	if account != "" {
-		transactions = transactions.Account(account)
+	if ltr.account != "" {
+		transactions = transactions.Account(ltr.account)
 	}
-	if month != "" {
-		transactions = transactions.Month(month)
+	if ltr.month != "" {
+		transactions = transactions.Month(ltr.month)
 	}
-	if q != "" {
-		transactions = transactions.Search(q)
+	if ltr.query != "" {
+		transactions = transactions.Search(ltr.query)
 	}
+
 	records, err := transactions.Records()
 	if err != nil {
 		log.Printf("Error fetching transactions: %v", err)
@@ -133,9 +164,9 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Account      string
 		Transactions []database.Transaction
-		Tags         map[string]float64
+		Tags         map[int]float64
 		Month        string
-	}{account, records, tags, month}
+	}{ltr.account, records, tags, ltr.month}
 	h.render(w, r, "transaction_list.html", data)
 }
 

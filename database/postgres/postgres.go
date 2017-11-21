@@ -3,6 +3,7 @@
 package postgres
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -57,7 +58,7 @@ var createTableSQL = []string{
 		payer_reference		text,
 		message			text,
 		card_number		text,
-		tag			text REFERENCES tags(name))`,
+		tag_id			int REFERENCES tags(id))`,
 }
 
 func (db *postgres) Close() error { return db.Close() }
@@ -120,22 +121,9 @@ func (db *postgres) AddImport(data database.Import) error {
 		return err
 	}
 
-	// Ensure all tags exist in postgres
-	tags := make(map[string]bool)
-	for _, r := range data.Transactions {
-		tags[r.Tag] = true
-	}
-	for tag := range tags {
-		_, err := db.Exec("INSERT INTO tags (name) VALUES ($1) ON CONFLICT DO NOTHING", tag)
-		if err != nil {
-			return err
-		}
-	}
-
 	stmt, err := txn.Prepare(pq.CopyIn("records", "import_id", "transaction_date",
 		"value_date", "payment_date", "amount", "payee_payer", "account", "bic",
-		"transaction", "reference", "payer_reference", "message", "card_number",
-		"tag"))
+		"transaction", "reference", "payer_reference", "message", "card_number"))
 	if err != nil {
 		return err
 	}
@@ -144,7 +132,7 @@ func (db *postgres) AddImport(data database.Import) error {
 	for _, r := range data.Transactions {
 		_, err = stmt.Exec(importid, r.TransactionDate, r.ValueDate, r.PaymentDate,
 			r.Amount, r.PayeePayer, r.Account, r.BIC, r.Transaction, r.Reference,
-			r.PayerReference, r.Message, r.CardNumber, r.Tag)
+			r.PayerReference, r.Message, r.CardNumber)
 		if err != nil {
 			return err
 		}
@@ -164,7 +152,8 @@ func (db *postgres) AddImport(data database.Import) error {
 }
 
 // SetRecordTag updates the Record Tag for record id to value tag.
-func (db *postgres) SetRecordTag(id int, tag string) error {
-	_, err := db.Exec("UPDATE records SET tag = $1 WHERE id = $2", tag, id)
+func (db *postgres) SetRecordTag(id int, tag int) error {
+	tagID := sql.NullInt64{Int64: int64(tag), Valid: tag > 0}
+	_, err := db.Exec("UPDATE records SET tag_id = $1 WHERE id = $2", tagID, id)
 	return err
 }

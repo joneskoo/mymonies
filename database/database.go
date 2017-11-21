@@ -29,7 +29,7 @@ type Database interface {
 	AddImport(data Import) error
 
 	// SetRecordTag updates the tag field of a transaction.
-	SetRecordTag(id int, tag string) error
+	SetRecordTag(id int, tag int) error
 }
 
 // TransactionSet is a filterable set of transactions.
@@ -52,7 +52,7 @@ type TransactionSet interface {
 
 	// SumTransactionsByTag executes the query and returns total amounts of
 	// transactions by tag.
-	SumTransactionsByTag() (map[string]float64, error)
+	SumTransactionsByTag() (map[int]float64, error)
 }
 
 // Import represents one transaction report imported from a file to
@@ -79,13 +79,13 @@ type Transaction struct {
 	PayerReference  string    `json:"payer_reference,omitempty"`
 	Message         string    `json:"message,omitempty"`
 	CardNumber      string    `json:"card_number,omitempty"`
-	Tag             string    `json:"tag,omitempty"`
+	TagID           int       `json:"tag_id,omitempty"`
 	Import
 }
 
 // Tag represents a transaction tag
 type Tag struct {
-	ID       int      `json:"id"`
+	ID       int      `json:"tag_id"`
 	Name     string   `json:"name,omitempty"`
 	Patterns []string `json:"patterns,omitempty"`
 }
