@@ -21,6 +21,9 @@ type Database interface {
 	// ListTags lists the tags configured.
 	ListTags() ([]Tag, error)
 
+	// Tag gets tag details from database by id.
+	Tag(id int) (*Tag, error)
+
 	// Transactions is a lazily executed database query. The set of transactions
 	// can be filtered further before the query is executed.
 	Transactions() TransactionSet

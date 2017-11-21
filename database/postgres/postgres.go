@@ -84,6 +84,13 @@ func (db *postgres) ListAccounts() ([]string, error) {
 	return accounts, err
 }
 
+func (db *postgres) Tag(id int) (*database.Tag, error) {
+	t := new(database.Tag)
+	err := db.QueryRowx("SELECT id, name, patterns from tags ORDER BY name").
+		Scan(&t.ID, &t.Name, (*pq.StringArray)(&t.Patterns))
+	return t, err
+}
+
 func (db *postgres) ListTags() ([]database.Tag, error) {
 	var tags []database.Tag
 	rows, err := db.Queryx("SELECT id, name, patterns from tags ORDER BY name")

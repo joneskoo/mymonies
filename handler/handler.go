@@ -189,5 +189,6 @@ func (h handler) funcMap() template.FuncMap {
 		"accounts": h.db.ListAccounts,
 		"date":     func(t time.Time) string { return t.Format("2006-01-02") },
 		"tags":     h.db.ListTags,
+		"tag":      h.db.Tag,
 	}
 }
