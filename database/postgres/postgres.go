@@ -86,8 +86,14 @@ func (db *postgres) ListAccounts() ([]string, error) {
 
 func (db *postgres) Tag(id int) (*database.Tag, error) {
 	t := new(database.Tag)
-	err := db.QueryRowx("SELECT id, name, patterns from tags ORDER BY name").
+	err := db.QueryRowx("SELECT id, name, patterns from tags WHERE id = $1", id).
 		Scan(&t.ID, &t.Name, (*pq.StringArray)(&t.Patterns))
+	return t, err
+}
+
+func (db *postgres) Import(id int) (*database.Import, error) {
+	t := new(database.Import)
+	err := db.QueryRowx("SELECT * from imports WHERE id = $1", id).StructScan(t)
 	return t, err
 }
 
@@ -115,7 +121,7 @@ func (db *postgres) Transactions() database.TransactionSet {
 
 // AddImport saves data into postgres atomically.
 // If import fails, all changes are rolled back.
-func (db *postgres) AddImport(data database.Import) error {
+func (db *postgres) AddImport(data database.ImportTransactions) error {
 	txn, err := db.Begin()
 	if err != nil {
 		return err

@@ -24,12 +24,15 @@ type Database interface {
 	// Tag gets tag details from database by id.
 	Tag(id int) (*Tag, error)
 
+	// Import gets tag details from database by id.
+	Import(id int) (*Import, error)
+
 	// Transactions is a lazily executed database query. The set of transactions
 	// can be filtered further before the query is executed.
 	Transactions() TransactionSet
 
 	// AddImport saves the transaction data to database.
-	AddImport(data Import) error
+	AddImport(data ImportTransactions) error
 
 	// SetRecordTag updates the tag field of a transaction.
 	SetRecordTag(id int, tag int) error
@@ -61,9 +64,13 @@ type TransactionSet interface {
 // Import represents one transaction report imported from a file to
 // database.
 type Import struct {
-	ID           int            `json:"import_id"`
-	Filename     string         `json:"filename,omitempty"`
-	Account      string         `json:"account,omitempty"`
+	ID       int    `json:"id"`
+	Filename string `json:"filename,omitempty"`
+	Account  string `json:"account,omitempty"`
+}
+
+type ImportTransactions struct {
+	Import
 	Transactions []*Transaction `json:"records,omitempty"`
 }
 
@@ -83,7 +90,7 @@ type Transaction struct {
 	Message         string    `json:"message,omitempty"`
 	CardNumber      string    `json:"card_number,omitempty"`
 	TagID           int       `json:"tag_id,omitempty"`
-	Import
+	ImportID        int       `json:"import_id,omitempty"`
 }
 
 // Tag represents a transaction tag

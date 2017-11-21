@@ -83,9 +83,11 @@ func importFile(filename string, db database.Database) error {
 		return nil
 	}
 	log.Println("Saving to database")
-	err = db.AddImport(database.Import{
-		Account:      f.Account(),
-		Filename:     f.FileName(),
+	err = db.AddImport(database.ImportTransactions{
+		Import: database.Import{
+			Account:  f.Account(),
+			Filename: f.FileName(),
+		},
 		Transactions: f.Transactions(),
 	})
 	if err != nil {
