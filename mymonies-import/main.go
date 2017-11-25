@@ -11,14 +11,13 @@ import (
 	"strings"
 
 	"github.com/joneskoo/mymonies/database"
-	"github.com/joneskoo/mymonies/database/postgres"
 	"github.com/joneskoo/mymonies/datasource"
 	"github.com/joneskoo/mymonies/datasource/nordea/pdf"
 	"github.com/joneskoo/mymonies/datasource/nordea/tsv"
 )
 
 func main() {
-	conn := flag.String("postgres", "", "PostgreSQL connection string, e.g. database=mymonies")
+	postgres := flag.String("postgres", "", "PostgreSQL connection string, e.g. database=mymonies")
 	flag.Parse()
 
 	log.SetPrefix("[mymonies] ")
@@ -29,11 +28,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	var db database.Database
-	if *conn != "" {
+	var db *database.Postgres
+	if *postgres != "" {
 		log.Println("Connecting to database…")
 		var err error
-		db, err = postgres.New(*conn)
+		db, err = database.Connect(*postgres)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -53,7 +52,7 @@ func main() {
 	log.Println("All done")
 }
 
-func importFile(filename string, db database.Database) error {
+func importFile(filename string, db *database.Postgres) error {
 	ext := filepath.Ext(filename)
 	var f datasource.File
 	var err error
