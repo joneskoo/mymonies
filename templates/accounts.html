@@ -9,16 +9,35 @@
         <h1>Tilit</h1>
 
         <ul class="list">
-            {{range $account := accounts}}
-            <li><a href="/transactions?account={{$account}}&month={{$month}}">{{$account}}</a></li>
+            {{range $account := .Accounts}}
+            <li><a href="/transactions?account={{$account}}">{{$account}}</a></li>
             {{end}}
         </ul>
 
         <h1>Luokat</h1>
 
-        {{range tags}}
+        {{range .Tags}}
         <a class="btn btn-info" href="/tags/{{.ID}}" role="button">{{.Name}}</a></li>
         {{end}}
+
+        <h1>Säännöt luokittelulle</h1>
+        <table class="table table-hover">
+            <thead class="thead-inverse">
+                <tr>
+                    <th>Tili</th>
+                    <th>Hakuehto</th>
+                    <th>Luokka</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {{range .Patterns}}
+                <tr>
+                    {{range .}}<td>{{.}}</td>{{end}}
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
 
     </div>
     </body>

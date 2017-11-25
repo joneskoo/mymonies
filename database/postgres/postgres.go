@@ -5,6 +5,7 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -41,8 +42,7 @@ var createTableSQL = []string{
 		account		text NOT NULL)`,
 	`CREATE TABLE IF NOT EXISTS tags (
 		id		serial UNIQUE,
-		name		text UNIQUE,
-		patterns	text[])`,
+		name		text UNIQUE)`,
 	`CREATE TABLE IF NOT EXISTS records (
 		id			serial UNIQUE,
 		import_id		int REFERENCES imports(id) ON DELETE CASCADE,
@@ -59,6 +59,11 @@ var createTableSQL = []string{
 		message			text,
 		card_number		text,
 		tag_id			int REFERENCES tags(id))`,
+	`CREATE TABLE IF NOT EXISTS patterns (
+		id serial		UNIQUE,
+		tag_id			int REFERENCES tags(id),
+		account			text NOT NULL,
+		query			text NOT NULL)`,
 }
 
 func (db *postgres) Close() error { return db.Close() }
@@ -84,33 +89,50 @@ func (db *postgres) ListAccounts() ([]string, error) {
 	return accounts, err
 }
 
-func (db *postgres) Tag(id int) (*database.Tag, error) {
-	t := new(database.Tag)
-	err := db.QueryRowx("SELECT id, name, patterns from tags WHERE id = $1", id).
-		Scan(&t.ID, &t.Name, (*pq.StringArray)(&t.Patterns))
+func (db *postgres) Tag(id int) (database.Tag, error) {
+	t := database.Tag{}
+	err := db.QueryRowx("SELECT id, name from tags WHERE id = $1", id).StructScan(&t)
 	return t, err
 }
 
-func (db *postgres) Import(id int) (*database.Import, error) {
-	t := new(database.Import)
-	err := db.QueryRowx("SELECT * from imports WHERE id = $1", id).StructScan(t)
+func (db *postgres) Import(id int) (database.Import, error) {
+	t := database.Import{}
+	err := db.QueryRowx("SELECT * from imports WHERE id = $1", id).StructScan(&t)
 	return t, err
 }
 
 func (db *postgres) ListTags() ([]database.Tag, error) {
 	var tags []database.Tag
-	rows, err := db.Queryx("SELECT id, name, patterns from tags ORDER BY name")
+	rows, err := db.Queryx("SELECT * from tags ORDER BY name")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var t database.Tag
-		err := rows.Scan(&t.ID, &t.Name, (*pq.StringArray)(&t.Patterns))
+		err := rows.StructScan(&t)
 		if err != nil {
 			return nil, err
 		}
 		tags = append(tags, t)
+	}
+	return tags, rows.Err()
+}
+
+func (db *postgres) ListPatterns() ([]database.Pattern, error) {
+	var tags []database.Pattern
+	rows, err := db.Queryx("SELECT * from patterns ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p database.Pattern
+		err := rows.StructScan(&p)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, p)
 	}
 	return tags, rows.Err()
 }
@@ -168,5 +190,32 @@ func (db *postgres) AddImport(data database.ImportTransactions) error {
 func (db *postgres) SetRecordTag(id int, tag int) error {
 	tagID := sql.NullInt64{Int64: int64(tag), Valid: tag > 0}
 	_, err := db.Exec("UPDATE records SET tag_id = $1 WHERE id = $2", tagID, id)
+	return err
+}
+
+// AddPattern saves a new Pattern
+func (db *postgres) AddPattern(account, query string, tagID int) error {
+	records, err := db.Transactions().Account(account).Search(query).Records()
+	ids := make([]string, len(records))
+	for i, r := range records {
+		ids[i] = strconv.Itoa(r.ID)
+	}
+	fmt.Println(ids)
+
+	txn, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer txn.Rollback()
+
+	_, err = txn.Exec("INSERT INTO patterns (account, query, tag_id) VALUES ($1, $2, $3)", account, query, tagID)
+	if err != nil {
+		return err
+	}
+	_, err = txn.Exec("UPDATE records SET tag_id = $1 WHERE id IN ("+strings.Join(ids, ",")+") AND tag_id IS NULL", tagID)
+	if err != nil {
+		return err
+	}
+	txn.Commit()
 	return err
 }

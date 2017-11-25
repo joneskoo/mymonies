@@ -73,6 +73,20 @@ function updateTag(element) {
             <a href="?account={{.Account}}">Näytä kaikki</a>
         </form>
 
+        <form action="/patterns/" method="POST">
+            <input type="hidden" name="account" value="{{.Account}}">
+            <input type="hidden" name="query" value="{{.Query}}">
+            <td>
+                <select name="tag_id" class="form-control">
+                    <option value="0">--</option>
+                    {{range $t := tags}}
+                        <option value="{{$t.ID}}">{{$t.Name}}</option>
+                    {{end}}
+                </select>
+            </td>
+            <input type="submit" value="Lisää luokittelusääntö">
+        </form>
+
         <div id="expenses" style="width: 400px; height: 200px; float: left;"></div>
         <div id="incomes" style="width: 400px; height: 200px; float: left;"></div>
 

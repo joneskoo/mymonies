@@ -21,11 +21,17 @@ type Database interface {
 	// ListTags lists the tags configured.
 	ListTags() ([]Tag, error)
 
+	// ListPatterns lists the patterns configured.
+	ListPatterns() ([]Pattern, error)
+
+	// AddPattern adds a new rule to map transactions on account matching query to tagID.
+	AddPattern(account string, query string, tagID int) error
+
 	// Tag gets tag details from database by id.
-	Tag(id int) (*Tag, error)
+	Tag(id int) (Tag, error)
 
 	// Import gets tag details from database by id.
-	Import(id int) (*Import, error)
+	Import(id int) (Import, error)
 
 	// Transactions is a lazily executed database query. The set of transactions
 	// can be filtered further before the query is executed.
@@ -58,7 +64,7 @@ type TransactionSet interface {
 
 	// SumTransactionsByTag executes the query and returns total amounts of
 	// transactions by tag.
-	SumTransactionsByTag() (map[int]float64, error)
+	SumTransactionsByTag() (map[string]float64, error)
 }
 
 // Import represents one transaction report imported from a file to
@@ -95,7 +101,15 @@ type Transaction struct {
 
 // Tag represents a transaction tag
 type Tag struct {
-	ID       int      `json:"tag_id"`
-	Name     string   `json:"name,omitempty"`
-	Patterns []string `json:"patterns,omitempty"`
+	ID   int    `json:"id"`
+	Name string `json:"name,omitempty"`
+}
+
+// Pattern represents a rule to match transactions on Account by search pattern
+// Query and tags them with TagID.
+type Pattern struct {
+	ID      int    `json:"id"`
+	TagID   int    `json:"tag_id"`
+	Account string `json:"account"`
+	Query   string `json:"query"`
 }

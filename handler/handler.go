@@ -28,6 +28,7 @@ func New(db database.Database) http.Handler {
 		}
 	})
 	mux.HandleFunc("/tags/", h.tagDetails)
+	mux.HandleFunc("/patterns/", h.addPattern)
 	return &h
 }
 
@@ -41,8 +42,38 @@ func (h handler) PreviousMonth() string {
 }
 
 func (h handler) accounts(w http.ResponseWriter, r *http.Request) {
+	accounts, err := h.db.ListAccounts()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tags, err := h.db.ListTags()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	patterns, err := h.db.ListPatterns()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	patternRows := make([][]string, 0)
+	for _, p := range patterns {
+		var tag string
+		for _, t := range tags {
+			if t.ID == p.TagID {
+				tag = t.Name
+			}
+		}
+		patternRows = append(patternRows, []string{p.Account, p.Query, tag})
+	}
 
-	h.render(w, r, "accounts.html", h)
+	h.render(w, r, "accounts.html", map[string]interface{}{
+		"PreviousMonth": h.PreviousMonth(),
+		"Accounts":      accounts,
+		"Tags":          tags,
+		"Patterns":      patternRows,
+	})
 }
 
 func (h handler) tagDetails(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +127,39 @@ func (h handler) updateTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type addPatternRequest struct {
+	Account string
+	Query   string
+	TagID   int
+}
+
+func (apr *addPatternRequest) FieldMap(*http.Request) binding.FieldMap {
+	return binding.FieldMap{
+		&apr.Account: binding.Field{Form: "account", Required: true},
+		&apr.Query:   binding.Field{Form: "query", Required: true},
+		&apr.TagID:   binding.Field{Form: "tag_id", Required: true},
+	}
+}
+
+func (h handler) addPattern(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache")
+
+	apr := new(addPatternRequest)
+	err := binding.Bind(r, apr)
+	if err != nil {
+		log.Printf("bad request updating tag: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.db.AddPattern(apr.Account, apr.Query, apr.TagID); err != nil {
+		log.Printf("AddPattern(%v, %v, %v) failed: %v", apr.Account, apr.Query, apr.TagID, err)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -164,9 +228,10 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Account      string
 		Transactions []database.Transaction
-		Tags         map[int]float64
+		Tags         map[string]float64
 		Month        string
-	}{ltr.account, records, tags, ltr.month}
+		Query        string
+	}{ltr.account, records, tags, ltr.month, ltr.query}
 	h.render(w, r, "transaction_list.html", data)
 }
 
@@ -186,10 +251,9 @@ func (h handler) render(w http.ResponseWriter, r *http.Request, templateFile str
 
 func (h handler) funcMap() template.FuncMap {
 	return template.FuncMap{
-		"accounts": h.db.ListAccounts,
-		"date":     func(t time.Time) string { return t.Format("2006-01-02") },
-		"tags":     h.db.ListTags,
-		"tag":      h.db.Tag,
-		"import":   h.db.Import,
+		"date":   func(t time.Time) string { return t.Format("2006-01-02") },
+		"tags":   h.db.ListTags,
+		"tag":    h.db.Tag,
+		"import": h.db.Import,
 	}
 }
