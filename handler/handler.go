@@ -52,7 +52,7 @@ func (h handler) accounts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	patterns, err := h.db.ListPatterns()
+	patterns, err := h.db.ListPatterns(-1)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -83,19 +83,26 @@ func (h handler) tagDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags, err := h.db.ListTags()
+	tag, err := h.db.Tag(id)
 	if err != nil {
-		log.Printf("failed to get tags: %v", err)
-		http.Error(w, "", http.StatusInternalServerError)
+		log.Printf("failed to get tag %v: %v", id, err)
+		http.Error(w, "Not found.", http.StatusNotFound)
 		return
 	}
-	for _, t := range tags {
-		if t.ID == id {
-			h.render(w, r, "tag.html", t)
-			return
-		}
+	patterns, err := h.db.ListPatterns(id)
+	if err != nil {
+		log.Printf("failed to get patterns for tag %v: %v", id, err)
+		http.Error(w, "Not found.", http.StatusInternalServerError)
+		return
 	}
-	http.Error(w, "", http.StatusNotFound)
+
+	ctx := map[string]interface{}{
+		"ID":       tag.ID,
+		"Name":     tag.Name,
+		"Patterns": patterns,
+	}
+	h.render(w, r, "tag.html", ctx)
+	return
 }
 
 type updateTagRequest struct {

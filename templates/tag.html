@@ -9,7 +9,7 @@
 
         <ul>
             {{range .Patterns}}
-            <li><a href="/transactions?q={{.}}">{{.}}</a></li>
+            <li><a href="/transactions?account={{.Account}}&q={{.Query}}">{{.Query}} ({{.Account}})</a></li>
             {{end}}
         </ul>
 

@@ -99,7 +99,7 @@ func (t *TransactionSet) SumTransactionsByTag() (map[string]float64, error) {
 	if t.err != nil {
 		return nil, t.err
 	}
-	t.Columns = []string{"coalesce(tags.name, '?')", "sum(abs(amount))"}
+	t.Columns = []string{"coalesce(tags.name, '?')", "sum(amount)"}
 	t.From = `records
 		LEFT OUTER JOIN imports ON records.import_id = imports.id
 		LEFT OUTER JOIN tags ON records.tag_id = tags.id`

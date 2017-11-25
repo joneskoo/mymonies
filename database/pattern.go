@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // Pattern represents a rule to match transactions on Account by search pattern
@@ -50,9 +52,15 @@ func (db *Postgres) AddPattern(account, query string, tagID int) error {
 }
 
 // ListPatterns lists the patterns configured.
-func (db *Postgres) ListPatterns() ([]Pattern, error) {
+func (db *Postgres) ListPatterns(tagID int) ([]Pattern, error) {
 	var tags []Pattern
-	rows, err := db.Queryx("SELECT * from patterns ORDER BY id")
+	var rows *sqlx.Rows
+	var err error
+	if tagID > 0 {
+		rows, err = db.Queryx("SELECT * from patterns WHERE tag_id = $1 ORDER BY query, account, id", tagID)
+	} else {
+		rows, err = db.Queryx("SELECT * from patterns ORDER BY account, id")
+	}
 	if err != nil {
 		return nil, err
 	}
