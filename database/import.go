@@ -16,11 +16,6 @@ CREATE TABLE IF NOT EXISTS imports (
 	filename	text,
 	account		text NOT NULL)`
 
-type ImportTransactions struct {
-	Import
-	Transactions []*Transaction `json:"records,omitempty"`
-}
-
 // Import gets tag details from database by id.
 func (db *Postgres) Import(id int) (Import, error) {
 	t := Import{}
@@ -37,7 +32,7 @@ func (db *Postgres) ListAccounts() ([]string, error) {
 
 // AddImport saves data into postgres atomically.
 // If import fails, all changes are rolled back.
-func (db *Postgres) AddImport(data ImportTransactions) error {
+func (db *Postgres) AddImport(filename, account string, transactions []*Transaction) error {
 	txn, err := db.Begin()
 	if err != nil {
 		return err
@@ -46,7 +41,7 @@ func (db *Postgres) AddImport(data ImportTransactions) error {
 
 	var importid int
 	const insertImport = "INSERT INTO imports (filename, account) VALUES ($1, $2) RETURNING id"
-	if err := db.QueryRow(insertImport, data.Filename, data.Account).Scan(&importid); err != nil {
+	if err := db.QueryRow(insertImport, filename, account).Scan(&importid); err != nil {
 		return err
 	}
 
@@ -58,7 +53,7 @@ func (db *Postgres) AddImport(data ImportTransactions) error {
 	}
 	defer stmt.Close()
 
-	for _, r := range data.Transactions {
+	for _, r := range transactions {
 		_, err = stmt.Exec(importid, r.TransactionDate, r.ValueDate, r.PaymentDate,
 			r.Amount, r.PayeePayer, r.Account, r.BIC, r.Transaction, r.Reference,
 			r.PayerReference, r.Message, r.CardNumber)

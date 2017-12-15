@@ -82,13 +82,7 @@ func importFile(filename string, db *database.Postgres) error {
 		return nil
 	}
 	log.Println("Saving to database")
-	err = db.AddImport(database.ImportTransactions{
-		Import: database.Import{
-			Account:  f.Account(),
-			Filename: f.FileName(),
-		},
-		Transactions: f.Transactions(),
-	})
+	err = db.AddImport(f.Account(), f.FileName(), f.Transactions())
 	if err != nil {
 		return err
 	}
