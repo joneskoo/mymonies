@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS imports (
 	filename	text,
 	account		text NOT NULL)`
 
-// Import gets tag details from database by id.
+// Import gets data source metadata by id.
 func (db *Postgres) Import(id int) (Import, error) {
 	t := Import{}
 	err := db.QueryRowx("SELECT * from imports WHERE id = $1", id).StructScan(&t)
