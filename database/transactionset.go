@@ -83,7 +83,7 @@ func (t *TransactionSet) Records() ([]Transaction, error) {
 	}
 	defer rows.Close()
 
-	var records []Transaction
+	records := make([]Transaction, 0)
 	for rows.Next() {
 		var t Transaction
 		_ = rows.StructScan(&t)

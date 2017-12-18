@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/gorilla/handlers"
+	"github.com/joneskoo/mymonies/api"
 	"github.com/joneskoo/mymonies/database"
 	"github.com/joneskoo/mymonies/handler"
 )
@@ -35,7 +36,9 @@ func main() {
 	}
 	laddr := net.JoinHostPort("127.0.0.1", port)
 	log.Println("Listening on http://" + laddr)
-	h := handler.New(db)
-	h = handlers.LoggingHandler(os.Stdout, h)
+	mux := http.NewServeMux()
+	mux.Handle("/api/", http.StripPrefix("/api", api.New(db)))
+	mux.Handle("/", handler.New(db))
+	h := handlers.LoggingHandler(os.Stdout, mux)
 	log.Fatal(http.ListenAndServe(laddr, h))
 }
