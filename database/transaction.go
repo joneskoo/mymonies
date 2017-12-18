@@ -48,9 +48,3 @@ func (db *Postgres) SetRecordTag(id int, tag int) error {
 	_, err := db.Exec("UPDATE records SET tag_id = $1 WHERE id = $2", tagID, id)
 	return err
 }
-
-// Transactions is a lazily executed database query. The set of transactions
-// can be filtered further before the query is executed.
-func (db *Postgres) Transactions() *TransactionSet {
-	return &TransactionSet{db: db.DB}
-}

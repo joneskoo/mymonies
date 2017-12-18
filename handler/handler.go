@@ -177,7 +177,7 @@ func (h handler) transactionDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transactions, err := h.db.Transactions().Id(id).Records()
+	transactions, err := h.db.Transactions(database.Id(id))
 	if err != nil {
 		log.Printf("failed to get transaction: %v", err)
 		http.Error(w, "", http.StatusNotFound)
@@ -207,25 +207,22 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transactions := h.db.Transactions()
-	if ltr.account != "" {
-		transactions = transactions.Account(ltr.account)
-	}
-	if ltr.month != "" {
-		transactions = transactions.Month(ltr.month)
-	}
-	if ltr.query != "" {
-		transactions = transactions.Search(ltr.query)
-	}
+	records, err := h.db.Transactions(
+		database.Account(ltr.account),
+		database.Month(ltr.month),
+		database.Search(ltr.query))
 
-	records, err := transactions.Records()
 	if err != nil {
 		log.Printf("Error fetching transactions: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
-	tags, err := transactions.SumTransactionsByTag()
+	tags, err := h.db.SumTransactionsByTag(
+		database.Account(ltr.account),
+		database.Month(ltr.month),
+		database.Search(ltr.query))
+
 	if err != nil {
 		log.Printf("Error fetching tags: %v", err)
 		http.Error(w, "", http.StatusInternalServerError)

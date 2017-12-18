@@ -147,27 +147,18 @@ func (h *transactions) FieldMap(*http.Request) binding.FieldMap {
 }
 
 func (h transactions) Handle(db *database.Postgres) (interface{}, error) {
-	transactions := db.Transactions()
-	if h.id > 0 {
-		transactions = transactions.Id(h.id)
-	}
-	if h.account != "" {
-		transactions = transactions.Account(h.account)
-	}
-	if h.month != "" {
-		transactions = transactions.Month(h.month)
-	}
-	if h.query != "" {
-		transactions = transactions.Search(h.query)
-	}
+	records, err := db.Transactions(
+		database.Id(h.id),
+		database.Account(h.account),
+		database.Month(h.month),
+		database.Search(h.query))
 
-	records, err := transactions.Records()
 	if err != nil {
 		log.Printf("Error fetching transactions: %v", err)
 		return nil, err
 	}
 
-	tags, err := transactions.SumTransactionsByTag()
+	tags, err := db.SumTransactionsByTag()
 	if err != nil {
 		log.Printf("Error fetching tags: %v", err)
 		return nil, err
