@@ -9,7 +9,7 @@ import (
 
 // Records executes the query and returns matching transactions.
 func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, error) {
-	t := &transactionSet{db: db.DB}
+	t := &transactionSet{db: db.DB, args: make(map[string]interface{})}
 	for _, f := range filters {
 		f(t)
 	}
@@ -22,7 +22,7 @@ func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, e
 	t.From = "records LEFT OUTER JOIN imports ON records.import_id = imports.id"
 	t.OrderBy = "transaction_date DESC, records.id"
 	fmt.Printf("SQL: %v\n", t.SQL())
-	rows, err := t.db.NamedQuery(t.SQL(), t.arg())
+	rows, err := t.db.NamedQuery(t.SQL(), t.args)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, e
 // SumTransactionsByTag executes the query and returns total amounts of
 // transactions by tag.
 func (db *Postgres) SumTransactionsByTag(filters ...TransactionFilter) (map[string]float64, error) {
-	t := &transactionSet{db: db.DB}
+	t := &transactionSet{db: db.DB, args: make(map[string]interface{})}
 	for _, f := range filters {
 		f(t)
 	}
@@ -55,7 +55,7 @@ func (db *Postgres) SumTransactionsByTag(filters ...TransactionFilter) (map[stri
 	t.GroupBy = "1"
 	t.OrderBy = "abs(sum(amount)) DESC"
 	fmt.Printf("SQL: %v\n", t.SQL())
-	rows, err := t.db.NamedQuery(t.SQL(), t.arg())
+	rows, err := t.db.NamedQuery(t.SQL(), t.args)
 	if err != nil {
 		return nil, err
 	}
@@ -77,24 +77,10 @@ type TransactionFilter func(*transactionSet)
 
 // transactionSet is a filterable set of transactions.
 type transactionSet struct {
-	db        *sqlx.DB
-	recordID  int
-	account   string
-	search    string
-	startDate time.Time
-	endDate   time.Time
-	err       error
+	db   *sqlx.DB
+	args map[string]interface{}
+	err  error
 	selectQuery
-}
-
-func (t *transactionSet) arg() map[string]interface{} {
-	return map[string]interface{}{
-		"record_id": t.recordID,
-		"account":   t.account,
-		"search":    t.search,
-		"start":     t.startDate,
-		"end":       t.endDate,
-	}
 }
 
 func noop() TransactionFilter {
@@ -108,7 +94,7 @@ func Id(id int) TransactionFilter {
 	}
 	return func(t *transactionSet) {
 		t.AndWhere("records.id = :record_id")
-		t.recordID = id
+		t.args["record_id"] = id
 	}
 }
 
@@ -119,7 +105,7 @@ func Account(account string) TransactionFilter {
 	}
 	return func(t *transactionSet) {
 		t.AndWhere("imports.account = :account")
-		t.account = account
+		t.args["account"] = account
 	}
 }
 
@@ -138,8 +124,8 @@ func Month(month string) TransactionFilter {
 			}
 			endDate = startDate.AddDate(0, 1, -1)
 			t.AndWhere("records.transaction_date BETWEEN :start AND :end")
-			t.startDate = startDate
-			t.endDate = endDate
+			t.args["start"] = startDate
+			t.args["end"] = endDate
 		}
 	}
 }
@@ -152,6 +138,6 @@ func Search(query string) TransactionFilter {
 	}
 	return func(t *transactionSet) {
 		t.AndWhere(":search IN (payee_payer, records.account, transaction, reference, payer_reference, message)")
-		t.search = query
+		t.args["search"] = query
 	}
 }
