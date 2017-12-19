@@ -8,6 +8,9 @@ type selectQuery struct {
 	Where   []string
 	GroupBy string
 	OrderBy string
+
+	args map[string]interface{}
+	err  error
 }
 
 func (q selectQuery) SQL() string {

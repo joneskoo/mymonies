@@ -3,26 +3,26 @@ package database
 import (
 	"fmt"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Records executes the query and returns matching transactions.
 func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, error) {
-	t := &transactionSet{db: db.DB, args: make(map[string]interface{})}
+	query := &selectQuery{
+		Columns: []string{"records.*"},
+		From:    "records LEFT OUTER JOIN imports ON records.import_id = imports.id",
+		OrderBy: "transaction_date DESC, records.id",
+		args:    make(map[string]interface{}),
+	}
 	for _, f := range filters {
-		f(t)
+		f(query)
 	}
 
-	if t.err != nil {
-		return nil, t.err
+	if query.err != nil {
+		return nil, query.err
 	}
 
-	t.Columns = []string{"records.*"}
-	t.From = "records LEFT OUTER JOIN imports ON records.import_id = imports.id"
-	t.OrderBy = "transaction_date DESC, records.id"
-	fmt.Printf("SQL: %v\n", t.SQL())
-	rows, err := t.db.NamedQuery(t.SQL(), t.args)
+	fmt.Printf("SQL: %v\n", query.SQL())
+	rows, err := db.NamedQuery(query.SQL(), query.args)
 	if err != nil {
 		return nil, err
 	}
@@ -40,22 +40,25 @@ func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, e
 // SumTransactionsByTag executes the query and returns total amounts of
 // transactions by tag.
 func (db *Postgres) SumTransactionsByTag(filters ...TransactionFilter) (map[string]float64, error) {
-	t := &transactionSet{db: db.DB, args: make(map[string]interface{})}
+	query := &selectQuery{
+		Columns: []string{"coalesce(tags.name, '?')", "sum(amount)"},
+		From: `records
+			LEFT OUTER JOIN imports ON records.import_id = imports.id
+			LEFT OUTER JOIN tags ON records.tag_id = tags.id`,
+		GroupBy: "1",
+		OrderBy: "abs(sum(amount)) DESC",
+
+		args: make(map[string]interface{}),
+	}
 	for _, f := range filters {
-		f(t)
+		f(query)
 	}
 
-	if t.err != nil {
-		return nil, t.err
+	if query.err != nil {
+		return nil, query.err
 	}
-	t.Columns = []string{"coalesce(tags.name, '?')", "sum(amount)"}
-	t.From = `records
-		LEFT OUTER JOIN imports ON records.import_id = imports.id
-		LEFT OUTER JOIN tags ON records.tag_id = tags.id`
-	t.GroupBy = "1"
-	t.OrderBy = "abs(sum(amount)) DESC"
-	fmt.Printf("SQL: %v\n", t.SQL())
-	rows, err := t.db.NamedQuery(t.SQL(), t.args)
+	fmt.Printf("SQL: %v\n", query.SQL())
+	rows, err := db.NamedQuery(query.SQL(), query.args)
 	if err != nil {
 		return nil, err
 	}
@@ -73,26 +76,17 @@ func (db *Postgres) SumTransactionsByTag(filters ...TransactionFilter) (map[stri
 	return tags, rows.Err()
 }
 
-type TransactionFilter func(*transactionSet)
+// TransactionFilter is an option that limits records returned by the query.
+type TransactionFilter func(*selectQuery)
 
-// transactionSet is a filterable set of transactions.
-type transactionSet struct {
-	db   *sqlx.DB
-	args map[string]interface{}
-	err  error
-	selectQuery
-}
-
-func noop() TransactionFilter {
-	return func(*transactionSet) {}
-}
+func noOpFilter(*selectQuery) {}
 
 // Id filters to only include a specific transaction by id.
 func Id(id int) TransactionFilter {
 	if id == 0 {
-		return noop()
+		return noOpFilter
 	}
-	return func(t *transactionSet) {
+	return func(t *selectQuery) {
 		t.AndWhere("records.id = :record_id")
 		t.args["record_id"] = id
 	}
@@ -101,9 +95,9 @@ func Id(id int) TransactionFilter {
 // Account filters to only include transactions from account.
 func Account(account string) TransactionFilter {
 	if account == "" {
-		return noop()
+		return noOpFilter
 	}
-	return func(t *transactionSet) {
+	return func(t *selectQuery) {
 		t.AndWhere("imports.account = :account")
 		t.args["account"] = account
 	}
@@ -112,9 +106,9 @@ func Account(account string) TransactionFilter {
 // Month filters to only include transactions during a given month.
 func Month(month string) TransactionFilter {
 	if month == "" {
-		return noop()
+		return noOpFilter
 	}
-	return func(t *transactionSet) {
+	return func(t *selectQuery) {
 		var startDate, endDate time.Time
 		if month != "" {
 			var err error
@@ -134,9 +128,9 @@ func Month(month string) TransactionFilter {
 // query exactly as a value of a field.
 func Search(query string) TransactionFilter {
 	if query == "" {
-		return noop()
+		return noOpFilter
 	}
-	return func(t *transactionSet) {
+	return func(t *selectQuery) {
 		t.AndWhere(":search IN (payee_payer, records.account, transaction, reference, payer_reference, message)")
 		t.args["search"] = query
 	}
