@@ -1,15 +1,15 @@
 package database
 
 import (
-	"fmt"
 	"time"
 )
 
-// Records executes the query and returns matching transactions.
+// Transactions returns all transactions, optionally limited by filters.
 func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, error) {
 	query := &selectQuery{
 		Columns: []string{"records.*"},
-		From:    "records LEFT OUTER JOIN imports ON records.import_id = imports.id",
+		From: `records
+			LEFT OUTER JOIN imports ON records.import_id = imports.id`,
 		OrderBy: "transaction_date DESC, records.id",
 		args:    make(map[string]interface{}),
 	}
@@ -21,7 +21,6 @@ func (db *Postgres) Transactions(filters ...TransactionFilter) ([]Transaction, e
 		return nil, query.err
 	}
 
-	fmt.Printf("SQL: %v\n", query.SQL())
 	rows, err := db.NamedQuery(query.SQL(), query.args)
 	if err != nil {
 		return nil, err
@@ -57,7 +56,6 @@ func (db *Postgres) SumTransactionsByTag(filters ...TransactionFilter) (map[stri
 	if query.err != nil {
 		return nil, query.err
 	}
-	fmt.Printf("SQL: %v\n", query.SQL())
 	rows, err := db.NamedQuery(query.SQL(), query.args)
 	if err != nil {
 		return nil, err
