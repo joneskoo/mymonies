@@ -177,7 +177,7 @@ func (h handler) transactionDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transactions, err := h.db.Transactions(database.Id(id))
+	transactions, err := h.db.Transactions(database.TransactionFilter{Id: id})
 	if err != nil {
 		log.Printf("failed to get transaction: %v", err)
 		http.Error(w, "", http.StatusNotFound)
@@ -186,31 +186,25 @@ func (h handler) transactionDetails(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, "transaction_detail.html", transactions[0])
 }
 
-type listTransactionsRequest struct {
-	account string
-	month   string
-	query   string
-}
+type listTransactionsRequest database.TransactionFilter
 
-func (ltr *listTransactionsRequest) FieldMap(*http.Request) binding.FieldMap {
+func (f *listTransactionsRequest) FieldMap(*http.Request) binding.FieldMap {
 	return binding.FieldMap{
-		&ltr.account: "account",
-		&ltr.month:   "month",
-		&ltr.query:   "q",
+		&f.Account: "account",
+		&f.Month:   "month",
+		&f.Query:   "q",
 	}
 }
 
 func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
-	ltr := new(listTransactionsRequest)
-	if err := binding.Bind(r, ltr); err != nil {
+	ltr := listTransactionsRequest{}
+	if err := binding.Bind(r, &ltr); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	filter := database.TransactionFilter(ltr)
 
-	records, err := h.db.Transactions(
-		database.Account(ltr.account),
-		database.Month(ltr.month),
-		database.Search(ltr.query))
+	records, err := h.db.Transactions(filter)
 
 	if err != nil {
 		log.Printf("Error fetching transactions: %v", err)
@@ -218,10 +212,7 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags, err := h.db.SumTransactionsByTag(
-		database.Account(ltr.account),
-		database.Month(ltr.month),
-		database.Search(ltr.query))
+	tags, err := h.db.SumTransactionsByTag(filter)
 
 	if err != nil {
 		log.Printf("Error fetching tags: %v", err)
@@ -232,10 +223,10 @@ func (h handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Account      string
 		Transactions []database.Transaction
-		Tags         map[string]float64
+		Tags         []database.TagAmount
 		Month        string
 		Query        string
-	}{ltr.account, records, tags, ltr.month, ltr.query}
+	}{filter.Account, records, tags, filter.Month, filter.Query}
 	h.render(w, r, "transaction_list.html", data)
 }
 

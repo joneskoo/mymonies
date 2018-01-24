@@ -131,34 +131,27 @@ func tags(db *database.Postgres) (interface{}, error) {
 
 // transactions returns transaction data with search query
 type transactions struct {
-	id      int
-	account string
-	month   string
-	query   string
+	database.TransactionFilter
 }
 
 func (h *transactions) FieldMap(*http.Request) binding.FieldMap {
 	return binding.FieldMap{
-		&h.id:      "id",
-		&h.account: "account",
-		&h.month:   "month",
-		&h.query:   "q",
+		&h.Id:      "id",
+		&h.Account: "account",
+		&h.Month:   "month",
+		&h.Query:   "q",
 	}
 }
 
 func (h transactions) Handle(db *database.Postgres) (interface{}, error) {
-	records, err := db.Transactions(
-		database.Id(h.id),
-		database.Account(h.account),
-		database.Month(h.month),
-		database.Search(h.query))
+	records, err := db.Transactions(h.TransactionFilter)
 
 	if err != nil {
 		log.Printf("Error fetching transactions: %v", err)
 		return nil, err
 	}
 
-	tags, err := db.SumTransactionsByTag()
+	tags, err := db.SumTransactionsByTag(h.TransactionFilter)
 	if err != nil {
 		log.Printf("Error fetching tags: %v", err)
 		return nil, err
@@ -166,7 +159,7 @@ func (h transactions) Handle(db *database.Postgres) (interface{}, error) {
 
 	type data struct {
 		Transactions []database.Transaction `json:"transactions"`
-		Tags         map[string]float64     `json:"tags"`
+		Tags         []database.TagAmount   `json:"tags"`
 	}
 	return data{records, tags}, nil
 }

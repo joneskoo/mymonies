@@ -20,8 +20,8 @@ type Transaction struct {
 	PayerReference  string    `json:"payer_reference,omitempty"`
 	Message         string    `json:"message,omitempty"`
 	CardNumber      string    `json:"card_number,omitempty"`
-	TagID           int       `json:"tag_id,omitempty"`
-	ImportID        int       `json:"import_id,omitempty"`
+	TagID           int       `json:"tag_id"`
+	ImportID        int       `json:"import_id"`
 }
 
 var recordsCreateTableSQL = `

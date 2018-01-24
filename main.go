@@ -38,7 +38,10 @@ func main() {
 	log.Println("Listening on http://" + laddr)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", http.StripPrefix("/api", api.New(db)))
+	// mux.Handle("/old/", http.StripPrefix("/old", handler.New(db)))
+	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("static"))))
 	mux.Handle("/", handler.New(db))
+
 	h := handlers.LoggingHandler(os.Stdout, mux)
 	log.Fatal(http.ListenAndServe(laddr, h))
 }

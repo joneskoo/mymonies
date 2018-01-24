@@ -26,7 +26,10 @@ CREATE TABLE IF NOT EXISTS patterns (
 
 // AddPattern adds a new rule to map transactions on account matching query to tagID.
 func (db *Postgres) AddPattern(account, query string, tagID int) error {
-	records, err := db.Transactions(Account(account), Search(query))
+	records, err := db.Transactions(TransactionFilter{
+		Account: account,
+		Query:   query,
+	})
 	ids := make([]string, len(records))
 	for i, r := range records {
 		ids[i] = strconv.Itoa(r.ID)
