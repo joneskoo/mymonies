@@ -1,0 +1,96 @@
+syntax = "proto3";
+package com.github.joneskoo.mymonies;
+option go_package = "mymonies";
+
+service Mymonies {
+  rpc AddPattern(AddPatternReq) returns (AddPatternResp);
+  rpc ListAccounts(ListAccountsReq) returns (ListAccountsResp);
+  rpc ListTags(ListTagsReq) returns (ListTagsResp);
+  rpc ListTransactions(ListTransactionsReq) returns (ListTransactionsResp);
+  rpc UpdateTag(UpdateTagReq) returns (UpdateTagResp);
+}
+
+/*
+ * Common data type definitions.
+ */
+
+message Account {
+  string number = 1; // Account number or other identifier.
+}
+
+message Tag {
+  string id = 1;
+  string name = 2;
+}
+
+message Transaction {
+  string id = 1;
+  string transaction_date = 2;
+  string value_date = 3;
+  string payment_date = 4;
+  double amount = 5;
+  string payee_payer = 6;
+  string account = 7;
+  string bic = 8;
+  string transaction = 9;
+  string reference = 10;
+  string payer_reference = 11;
+  string message = 12;
+  string card_number = 13;
+  string tag_id = 14;
+  string import_id = 15;
+}
+
+message TransactionFilter {
+  string id = 1; // Limit to specific transaction by id.
+  string account = 2; // Limit to transactions by account name.
+  string month = 3; // Limit to transactions in year-month e.g. 2006-01.
+  string query = 4; // Limit transactions by free text query.
+}
+
+message Pattern {
+  string account = 1;
+  string query = 2;
+  string tag_id = 3;
+}
+
+/*
+ * RPC request/response message definitions.
+ */
+
+message AddPatternReq {
+  Pattern pattern = 1;
+}
+
+message AddPatternResp {
+}
+
+message ListAccountsReq {
+}
+
+message ListAccountsResp {
+  repeated Account accounts = 1;
+}
+
+message ListTagsReq {
+}
+
+message ListTagsResp {
+  repeated Tag tags = 1;
+}
+
+message ListTransactionsReq {
+  TransactionFilter filter = 1; // Limit transactions with filter.
+}
+
+message ListTransactionsResp {
+  repeated Transaction transactions = 1;
+}
+
+message UpdateTagReq {
+  string transaction_id = 1;
+  string tag_id = 2;
+}
+
+message UpdateTagResp {
+}
