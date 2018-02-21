@@ -1,7 +1,7 @@
 // Package datasource declares the interface for mymonies data sources.
 package datasource
 
-import "github.com/joneskoo/mymonies/database"
+import "github.com/joneskoo/mymonies/pkg/database"
 
 // File represents set of transaction records for a particular account.
 // Depending on the data source the time span may be a monthly statement

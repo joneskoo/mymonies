@@ -7,8 +7,8 @@ import (
 
 	"github.com/twitchtv/twirp"
 
-	"github.com/joneskoo/mymonies/internal/database"
-	pb "github.com/joneskoo/mymonies/rpc/mymonies"
+	"github.com/joneskoo/mymonies/pkg/database"
+	pb "github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 )
 
 // Server implements mymonies RPC interface.
@@ -59,25 +59,17 @@ func (s *Server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, e
 
 // ListTransactions lists transactions. Optionally a filter can be provided.
 func (s *Server) ListTransactions(_ context.Context, req *pb.ListTransactionsReq) (*pb.ListTransactionsResp, error) {
-	id, err := strconv.Atoi(req.Filter.Id)
-	if err != nil && len(req.Filter.Id) > 0 {
-		return nil, twirp.InvalidArgumentError("id", err.Error())
-	}
-	filter := database.TransactionFilter{
-		Id:      id,
-		Account: req.Filter.Account,
-		Month:   req.Filter.Month,
-		Query:   req.Filter.Query,
-	}
-	records, err := s.DB.Transactions(filter)
-
+	filter, err := filterFromRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.ListTransactionsResp{
-		Transactions: convertTransactions(records),
-	}, nil
+	records, err := s.DB.Transactions(filter)
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	return transactionsResponse(records), nil
 }
 
 // UpdateTag sets the transaction tag id.
@@ -96,10 +88,28 @@ func (s *Server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateT
 	return &pb.UpdateTagResp{}, nil
 }
 
-func convertTransactions(in []database.Transaction) []*pb.Transaction {
-	out := make([]*pb.Transaction, len(in))
-	for i, t := range in {
-		out[i] = &pb.Transaction{
+func filterFromRequest(req *pb.ListTransactionsReq) (database.TransactionFilter, error) {
+	filter := database.TransactionFilter{}
+	if req.Filter == nil {
+		return filter, nil
+	}
+	if req.Filter.Id != "" {
+		id, err := strconv.Atoi(req.Filter.Id)
+		if err != nil && len(req.Filter.Id) > 0 {
+			return filter, twirp.InvalidArgumentError("id", err.Error())
+		}
+		filter.Id = id
+	}
+	filter.Account = req.Filter.Account
+	filter.Month = req.Filter.Month
+	filter.Query = req.Filter.Query
+	return filter, nil
+}
+
+func transactionsResponse(data []database.Transaction) *pb.ListTransactionsResp {
+	transactions := make([]*pb.Transaction, len(data))
+	for i, t := range data {
+		transactions[i] = &pb.Transaction{
 			Id:              strconv.Itoa(t.ID),
 			TransactionDate: t.TransactionDate.Format(time.RFC3339),
 			ValueDate:       t.ValueDate.Format(time.RFC3339),
@@ -117,7 +127,7 @@ func convertTransactions(in []database.Transaction) []*pb.Transaction {
 			ImportId:        strconv.Itoa(t.ImportID),
 		}
 	}
-	return out
+	return &pb.ListTransactionsResp{Transactions: transactions}
 }
 
 func convertTags(in []database.Tag) []*pb.Tag {

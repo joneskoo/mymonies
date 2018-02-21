@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joneskoo/mymonies/database"
+	"github.com/joneskoo/mymonies/pkg/database"
 )
 
 func mustParseRFC3339(value string) time.Time {

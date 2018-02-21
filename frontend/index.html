@@ -1,0 +1,118 @@
+<html>
+
+<head>
+  <title>Mymonies</title>
+  <link rel="stylesheet" href="resources/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="resources/css/mymonies.css">
+  <!-- <script src="resources/js/vue.js"></script> -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.5.13/dist/vue.js"></script>
+
+  <script src="resources/js/rpc/mymonies/service_twirp.js"></script>
+  <script src="resources/js/mymonies.js"></script>
+</head>
+
+<body>
+	<div id="app" v-cloak>
+		<tabs>
+			<tab name="Mymonies" id="">
+				asdf
+			</tab>
+
+			<tab name="Tilitapahtumat" id="transactions">
+				<transaction-list>
+					<p>
+						Tili:
+						<select-account :accounts="accounts" :selected.sync="account"></select-account>
+					</p>
+
+					<h1>Tapahtumat tilillä {{ account }}</h1>
+
+					<table id="transactions" class="table table-hover">
+						<thead class="thead-inverse">
+							<tr>
+								<th>Kirjauspäivä</th>
+								<th>Maksaja/Saaja</th>
+								<th class="table-right">Määrä</th>
+								<th>Luokka</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for="(tx, id) in transactions" @click="modalTransaction = id">
+								<td>{{ tx.transaction_date }}</td>
+								<td>{{ tx.payee_payer }}</td>
+								<td style="text-align: right">{{ tx.amount }}</td>
+								<td>
+									<select>
+										<option value="0" selected="true">{{ tx.tag_id }}</option>
+									</select>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+
+					<modal v-if="modalTransaction" @close="modalTransaction = false">
+						<table class="table table-hover table-sm" slot="body">
+							<tbody>
+								<tr>
+									<td>Transaction date</td>
+									<td>{{ transactions[modalTransaction].transaction_date }}</td>
+								</tr>
+								<tr>
+									<td>Payee/Payer</td>
+									<td>{{ transactions[modalTransaction].payee_payer }}</td>
+								</tr>
+								<tr>
+									<td>Account</td>
+									<td>{{ transactions[modalTransaction].account }}</td>
+								</tr>
+								<tr>
+									<td>BIC</td>
+									<td>{{ transactions[modalTransaction].bic }}</td>
+								</tr>
+								<tr>
+									<td>Amount</td>
+									<td>{{ transactions[modalTransaction].amount }}</td>
+								</tr>
+								<tr>
+									<td>Transaction</td>
+									<td>{{ transactions[modalTransaction].transaction }}</td>
+								</tr>
+								<tr>
+									<td>Reference</td>
+									<td>{{ transactions[modalTransaction].reference }}</td>
+								</tr>
+								<tr>
+									<td>PayerReference</td>
+									<td>{{ transactions[modalTransaction].payer_reference }}</td>
+								</tr>
+								<tr>
+									<td>Message</td>
+									<td>{{ transactions[modalTransaction].message }}</td>
+								</tr>
+								<tr>
+									<td>CardNumber</td>
+									<td>{{ transactions[modalTransaction].card_number }}</td>
+								</tr>
+								<tr>
+									<td>Tag</td>
+									<td>{{ transactions[modalTransaction].tag_id }}</td>
+								</tr>
+							</tbody>
+						</table>
+					</modal>
+				</transaction-list>
+			</tab>
+
+			<tab name="Luokittelusäännöt" id="tagging">
+					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed eu leo at ex vehicula tincidunt. Sed pretium vitae justo ac eleifend. Praesent sagittis orci elit, quis consectetur metus condimentum non. Donec malesuada hendrerit orci, sed vulputate ipsum pharetra ut. Maecenas risus nisl, egestas vitae fringilla id, finibus et lorem. Morbi iaculis nisi a libero viverra, id fermentum ligula finibus. Curabitur vitae posuere nisi. Sed cursus dictum augue, vitae pellentesque mi ullamcorper eu. Donec euismod nibh sit amet risus molestie pharetra. Fusce eget elit vestibulum, interdum risus et, vulputate leo. Suspendisse faucibus, ligula at aliquet ornare, lorem metus pretium est, efficitur elementum eros purus at dui. Nunc quis ultricies erat, vitae accumsan tortor.
+
+					Nunc ut erat a sapien consectetur dignissim ac gravida lectus. Cras id egestas tellus. Praesent volutpat orci et arcu bibendum, vitae congue leo tincidunt. Ut justo urna, varius consectetur nisl eu, iaculis accumsan urna. Ut at pretium dui. Phasellus eget tortor sed lectus semper ultrices. Aenean neque dolor, euismod ac condimentum at, aliquam sed odio. Sed aliquam sit amet nisi ut dictum. Cras maximus tellus ut tortor euismod, non ornare turpis porta. In sed condimentum risus.
+
+					Aliquam erat volutpat. Nullam bibendum urna eget eros maximus, vel commodo augue pharetra. Cras tincidunt aliquam augue eu iaculis. Duis malesuada tincidunt laoreet. Curabitur sit amet urna quis quam commodo semper aliquam non justo. Sed pretium, enim id ultrices tristique, arcu sem sollicitudin dui, quis ultrices neque ligula non lacus. Suspendisse malesuada vitae urna eu mattis. Ut eget viverra lectus. Nulla sagittis luctus ipsum, eget euismod sem pulvinar nec. Nunc eu placerat odio. Nulla ante ligula, rutrum sed molestie non, posuere id sapien.
+			</tab>
+		</tabs>
+	</div>
+</body>
+
+</html>
+

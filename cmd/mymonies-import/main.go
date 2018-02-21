@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joneskoo/mymonies/database"
-	"github.com/joneskoo/mymonies/datasource"
-	"github.com/joneskoo/mymonies/datasource/nordea/pdf"
-	"github.com/joneskoo/mymonies/datasource/nordea/tsv"
+	"github.com/joneskoo/mymonies/pkg/database"
+	"github.com/joneskoo/mymonies/pkg/datasource"
+	"github.com/joneskoo/mymonies/pkg/datasource/nordea/pdf"
+	"github.com/joneskoo/mymonies/pkg/datasource/nordea/tsv"
 )
 
 func main() {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joneskoo/mymonies/database"
-	"github.com/joneskoo/mymonies/datasource"
+	"github.com/joneskoo/mymonies/pkg/database"
+	"github.com/joneskoo/mymonies/pkg/datasource"
 
 	"rsc.io/pdf"
 )
