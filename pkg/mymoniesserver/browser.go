@@ -59,7 +59,7 @@ func (s *Server) ListTransactions(_ context.Context, req *pb.ListTransactionsReq
 		return nil, err
 	}
 
-	records, err := s.DB.Transactions(filter)
+	records, err := s.DB.Transactions(*filter)
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
@@ -83,22 +83,24 @@ func (s *Server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateT
 	return &pb.UpdateTagResp{}, nil
 }
 
-func filterFromRequest(req *pb.ListTransactionsReq) (database.TransactionFilter, error) {
-	filter := database.TransactionFilter{}
+func filterFromRequest(req *pb.ListTransactionsReq) (*database.TransactionFilter, error) {
 	if req.Filter == nil {
-		return filter, nil
+		return &database.TransactionFilter{}, nil
 	}
+	var id int
 	if req.Filter.Id != "" {
-		id, err := strconv.Atoi(req.Filter.Id)
+		var err error
+		id, err = strconv.Atoi(req.Filter.Id)
 		if err != nil && len(req.Filter.Id) > 0 {
-			return filter, twirp.InvalidArgumentError("id", err.Error())
+			return nil, twirp.InvalidArgumentError("id", err.Error())
 		}
-		filter.Id = id
 	}
-	filter.Account = req.Filter.Account
-	filter.Month = req.Filter.Month
-	filter.Query = req.Filter.Query
-	return filter, nil
+	return &database.TransactionFilter{
+		Id:      id,
+		Account: req.Filter.Account,
+		Month:   req.Filter.Month,
+		Query:   req.Filter.Query,
+	}, nil
 }
 
 func transactionsResponse(data []database.Transaction) *pb.ListTransactionsResp {
