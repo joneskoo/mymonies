@@ -1,7 +1,7 @@
 // Package datasource declares the interface for mymonies data sources.
 package datasource
 
-import "github.com/joneskoo/mymonies/pkg/database"
+import "time"
 
 // File represents set of transaction records for a particular account.
 // Depending on the data source the time span may be a monthly statement
@@ -16,5 +16,21 @@ type File interface {
 	Account() string
 
 	// Transactions returns the transaction records from the file.
-	Transactions() []*database.Transaction
+	Transactions() []Transaction
+}
+
+type Transaction interface {
+	ID() string
+	TransactionDate() time.Time
+	ValueDate() time.Time
+	PaymentDate() time.Time
+	Amount() float64
+	PayeePayer() string
+	Account() string
+	BIC() string
+	Transaction() string
+	Reference() string
+	PayerReference() string
+	Message() string
+	CardNumber() string
 }

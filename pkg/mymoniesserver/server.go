@@ -4,7 +4,7 @@ package mymoniesserver
 import (
 	"net/http"
 
-	"github.com/joneskoo/mymonies/pkg/database"
+	"github.com/joneskoo/mymonies/pkg/mymoniesserver/database"
 )
 
 type Server struct {

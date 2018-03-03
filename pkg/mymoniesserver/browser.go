@@ -7,7 +7,7 @@ import (
 
 	"github.com/twitchtv/twirp"
 
-	"github.com/joneskoo/mymonies/pkg/database"
+	"github.com/joneskoo/mymonies/pkg/mymoniesserver/database"
 	pb "github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 )
 

@@ -11,13 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/joneskoo/mymonies/pkg/database"
-	"github.com/joneskoo/mymonies/pkg/datasource"
 )
 
 // FromFile loads transaction records from a Nordea TSV file.
-func FromFile(filename string) (datasource.File, error) {
+func FromFile(filename string) (*File, error) {
 	lineEnd := []byte("\n\r\n")
 
 	data, err := ioutil.ReadFile(filename)
@@ -39,33 +36,50 @@ func FromFile(filename string) (datasource.File, error) {
 	r.Comma = '\t'
 	r.FieldsPerRecord = 14
 	_, _ = r.Read() // ignore first line
-	transactions := []*database.Transaction{}
+	var transactions []*Transaction
+loop:
 	for {
+		var t *Transaction
 		r, err := r.Read()
-		if err == io.EOF {
-			break
+		switch err {
+		case io.EOF:
+			break loop
+		case nil:
+			t, err = fromSlice(r)
 		}
 		if err != nil {
 			return nil, err
 		}
-		rec, err := fromSlice(r)
-		if err != nil {
-			return nil, err
-		}
-		transactions = append(transactions, &rec)
+		transactions = append(transactions, t)
 	}
-	return file{filename, account, transactions}, nil
+	return &File{filename, account, transactions}, nil
 }
 
-type file struct {
+type File struct {
 	filename     string
 	account      string
-	transactions []*database.Transaction
+	transactions []*Transaction
 }
 
-func (f file) Account() string                       { return f.account }
-func (f file) FileName() string                      { return filepath.Base(f.filename) }
-func (f file) Transactions() []*database.Transaction { return f.transactions }
+func (f File) Account() string              { return f.account }
+func (f File) FileName() string             { return filepath.Base(f.filename) }
+func (f File) Transactions() []*Transaction { return f.transactions }
+
+type Transaction struct {
+	ID              string
+	TransactionDate time.Time
+	ValueDate       time.Time
+	PaymentDate     time.Time
+	Amount          float64
+	PayeePayer      string
+	Account         string
+	BIC             string
+	Transaction     string
+	Reference       string
+	PayerReference  string
+	Message         string
+	CardNumber      string
+}
 
 var fields = []string{
 	"Kirjauspäivä",
@@ -85,30 +99,13 @@ var fields = []string{
 
 const dateFormat = "02.01.2006"
 
-var helsinki *time.Location
-
-func fromSlice(r []string) (rec database.Transaction, err error) {
-	td, err := time.ParseInLocation(dateFormat, r[0], helsinki)
-	if err != nil {
-		return rec, fmt.Errorf("bad transaction date format: %v", err)
-	}
-	vd, err := time.ParseInLocation(dateFormat, r[1], helsinki)
-	if err != nil {
-		return rec, fmt.Errorf("bad value date format: %v", err)
-	}
-	pd, err := time.ParseInLocation(dateFormat, r[2], helsinki)
-	if err != nil {
-		return rec, fmt.Errorf("bad payment date format: %v", err)
-	}
-	amount, err := strconv.ParseFloat(strings.Replace(r[3], ",", ".", 1), 64)
-	if err != nil {
-		return rec, fmt.Errorf("bad amount format: %v", err)
-	}
-	rec = database.Transaction{
-		TransactionDate: td,
-		ValueDate:       vd,
-		PaymentDate:     pd,
-		Amount:          amount,
+func fromSlice(r []string) (t *Transaction, err error) {
+	p := new(safeParser)
+	t = &Transaction{
+		TransactionDate: p.date(r[0], "transaction date"),
+		ValueDate:       p.date(r[1], "value date"),
+		PaymentDate:     p.date(r[2], "payment date"),
+		Amount:          p.amount(r[3], "amount"),
 		PayeePayer:      r[4],
 		Account:         r[5],
 		BIC:             r[6],
@@ -119,8 +116,41 @@ func fromSlice(r []string) (rec database.Transaction, err error) {
 		CardNumber:      r[11],
 		// Receipt:         r[12], // receipt column ignored
 	}
-	return rec, err
+	if p.err != nil {
+		return nil, p.err
+	}
+	return t, p.err
 }
+
+type safeParser struct {
+	err error
+}
+
+func (p *safeParser) date(v, field string) time.Time {
+	if p.err != nil {
+		return time.Time{}
+	}
+	var t time.Time
+	t, p.err = time.ParseInLocation(dateFormat, v, helsinki)
+	if p.err != nil {
+		p.err = fmt.Errorf("bad %v format: %v", field, p.err)
+		return time.Time{}
+	}
+	return t
+}
+
+func (p *safeParser) amount(v, field string) (a float64) {
+	if p.err != nil {
+		return
+	}
+	a, p.err = strconv.ParseFloat(strings.Replace(v, ",", ".", 1), 64)
+	if p.err != nil {
+		p.err = fmt.Errorf("bad %v format: %v", field, p.err)
+	}
+	return
+}
+
+var helsinki *time.Location
 
 func init() {
 	var err error

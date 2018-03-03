@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/joneskoo/mymonies/pkg/middleware"
+	"github.com/joneskoo/mymonies/pkg/mymoniesserver/middleware"
 	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 	// "github.com/joneskoo/mymonies/pkg/twirp-serverhook-prometheus"
 )

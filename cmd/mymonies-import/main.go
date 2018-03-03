@@ -6,45 +6,31 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/joneskoo/mymonies/pkg/database"
-	"github.com/joneskoo/mymonies/pkg/datasource"
+	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
+
 	"github.com/joneskoo/mymonies/pkg/datasource/nordea/pdf"
 	"github.com/joneskoo/mymonies/pkg/datasource/nordea/tsv"
+	"github.com/joneskoo/mymonies/pkg/mymoniesserver/database"
 )
 
 func main() {
-	postgres := flag.String("postgres", "", "PostgreSQL connection string, e.g. database=mymonies")
+	server := flag.String("url", "http://127.0.0.1:8000", "Mymonies server address")
 	flag.Parse()
-
-	log.SetPrefix("[mymonies] ")
-	log.SetFlags(log.Lshortfile)
 
 	if flag.NArg() == 0 {
 		flag.Usage()
 		os.Exit(2)
 	}
 
-	var db *database.Postgres
-	if *postgres != "" {
-		log.Println("Connecting to database…")
-		var err error
-		db, err = database.Connect(*postgres)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := db.CreateTables(); err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		log.Println("No database URL set, data will not be saved")
-	}
+	client := mymonies.NewMymoniesProtobufClient(*server, &http.Client{})
 
 	for _, filename := range flag.Args() {
-		err := importFile(filename, db)
+		err := importFile(filename, client)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -52,9 +38,11 @@ func main() {
 	log.Println("All done")
 }
 
-func importFile(filename string, db *database.Postgres) error {
+func importFile(filename string, client mymonies.Mymonies) error {
 	ext := filepath.Ext(filename)
-	var f datasource.File
+	var f interface {
+		Transactions() []interface{}
+	}
 	var err error
 
 	switch ext {
@@ -78,11 +66,11 @@ func importFile(filename string, db *database.Postgres) error {
 	// }
 	// fmt.Println("---------------------------")
 
-	if db == nil || len(f.Transactions()) == 0 {
+	if client == nil || len(f.Transactions()) == 0 {
 		return nil
 	}
 	log.Println("Saving to database")
-	err = db.AddImport(f.Account(), f.FileName(), f.Transactions())
+	err = client.AddImport(f.Account(), f.FileName(), f.Transactions())
 	if err != nil {
 		return err
 	}

@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joneskoo/mymonies/pkg/database"
-	"github.com/joneskoo/mymonies/pkg/datasource"
-
 	"rsc.io/pdf"
 )
 
@@ -23,32 +20,49 @@ var (
 	transactionPattern   = regexp.MustCompile(`^(?P<Date>\d+\.\d+\.) +(?P<InterestDate>\d+\.\d+\.) +(?P<Transaction>[^ ]{12}) +(?P<Payee>.*[^ ]) +(?P<Amount>\d+\.\d\d-?) *$`)
 )
 
-type bill struct {
+type Bill struct {
 	file         string
 	account      string
-	transactions []*database.Transaction
+	transactions []*Transaction
 }
 
-func (b bill) FileName() string                      { return filepath.Base(b.file) }
-func (b bill) Account() string                       { return b.account }
-func (b bill) Transactions() []*database.Transaction { return b.transactions }
+func (b Bill) FileName() string { return filepath.Base(b.file) }
+func (b Bill) Account() string {
+	account := "************" + b.account[12:]
+	return account
+}
+func (b Bill) Transactions() []*Transaction { return b.transactions }
 
-// FromFile loads transaction records from a Nordea TSV file.
-func FromFile(filename string) (datasource.File, error) {
-	lines, err := extractText(filename)
+type Transaction struct {
+	TransactionDate time.Time
+	ValueDate       time.Time
+	Amount          float64
+	PayeePayer      string
+	Account         string
+	Transaction     string
+}
+
+// FromFile loads Transaction records from a Nordea TSV file.
+func FromFile(filename string) (*Bill, error) {
+	var (
+		lines []string
+		err   error
+	)
+	lines, err = extractText(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract text from PDF: %v", err)
 	}
-	var account string
-	var billTotal float64
-	var transactions []*database.Transaction
-	var dueDate time.Time
+
+	var (
+		account   string
+		billTotal float64
+		dueDate   time.Time
+	)
 	for _, line := range lines {
 		switch {
 		case accountPattern.MatchString(line):
 			match := accountPattern.FindStringSubmatch(line)
 			account = match[1]
-			account = "************" + account[12:]
 		case billTotalPattern.MatchString(line):
 			match := billTotalPattern.FindStringSubmatch(line)
 			due, _ := match[1], match[2]
@@ -63,34 +77,60 @@ func FromFile(filename string) (datasource.File, error) {
 			if err != nil {
 				return nil, err
 			}
-		case transactionPattern.MatchString(line):
-			match := transactionPattern.FindStringSubmatch(line)
-			date, interestDate, transaction, payee, amount := match[1], match[2], match[3], match[4], match[5]
-			tx := database.Transaction{}
-			if tx.TransactionDate, err = time.Parse("02.01.", date); err != nil {
-				return nil, err
-			}
-			if tx.ValueDate, err = time.Parse("02.01.", interestDate); err != nil {
-				return nil, err
-			}
-			tx.Transaction = transaction
-			tx.PayeePayer = payee
-			if tx.Amount, err = parseAmount(amount); err != nil {
-				return nil, err
-			}
-			transactions = append(transactions, &tx)
 		}
+	}
+
+	p := new(safeParser)
+	var transactions []*Transaction
+	for _, line := range lines {
+		if transactionPattern.MatchString(line) {
+			match := transactionPattern.FindStringSubmatch(line)
+			transactions = append(transactions, &Transaction{
+				TransactionDate: fixYear(p.date(match[1], "transaction date"), dueDate),
+				ValueDate:       fixYear(p.date(match[2], "interest date"), dueDate),
+				Transaction:     match[3],
+				PayeePayer:      match[4],
+				Amount:          p.amount(match[5], "amount"),
+			})
+		}
+	}
+	if p.err != nil {
+		return nil, p.err
 	}
 	sum := 0.0
 	for _, tx := range transactions {
 		sum += tx.Amount
-		tx.TransactionDate = fixYear(tx.TransactionDate, dueDate)
-		tx.ValueDate = fixYear(tx.ValueDate, dueDate)
 	}
 	if math.Abs(billTotal-sum) >= 0.01 {
 		return nil, fmt.Errorf("sum of transaction amounts %.2f != bill total %.2f", sum, billTotal)
 	}
-	return bill{account: account, file: filename, transactions: transactions}, nil
+	return &Bill{account: account, file: filename, transactions: transactions}, nil
+}
+
+type safeParser struct {
+	err error
+}
+
+func (p *safeParser) date(v, field string) (t time.Time) {
+	if p.err != nil {
+		return
+	}
+	t, p.err = time.Parse("02.01.", v)
+	if p.err != nil {
+		p.err = fmt.Errorf("bad %v format: %v", field, p.err)
+	}
+	return
+}
+
+func (p *safeParser) amount(v, field string) (a float64) {
+	if p.err != nil {
+		return
+	}
+	a, p.err = parseAmount(v)
+	if p.err != nil {
+		p.err = fmt.Errorf("bad %v format: %v", field, p.err)
+	}
+	return
 }
 
 func extractText(file string) ([]string, error) {

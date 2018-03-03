@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/joneskoo/mymonies/pkg/database"
 )
 
 func mustParseRFC3339(value string) time.Time {
@@ -23,20 +21,20 @@ func TestFromFile(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     args
-		wantFile file
+		wantFile File
 		wantErr  bool
 	}{
-		{"missing file", args{""}, file{}, true},
-		{"invalid format", args{"test_data/invalid.txt"}, file{}, true},
+		{"missing file", args{""}, File{}, true},
+		{"invalid format", args{"test_data/invalid.txt"}, File{}, true},
 
 		{
 			"valid file",
 			args{"test_data/Tapahtumat_FI4612345600007890_20130808_20130808.txt"},
-			file{
+			File{
 				filename: "Tapahtumat_FI4612345600007890_20130808_20130808.txt",
 				account:  "FI4612345600007890",
-				transactions: []*database.Transaction{
-					&database.Transaction{
+				transactions: []*Transaction{
+					&Transaction{
 						TransactionDate: mustParseRFC3339("2015-03-23T00:00:00+02:00"),
 						ValueDate:       mustParseRFC3339("2015-03-22T00:00:00+02:00"),
 						PaymentDate:     mustParseRFC3339("2015-03-22T00:00:00+02:00"),
@@ -57,19 +55,18 @@ func TestFromFile(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(tt *testing.T) {
-			gotFile, err := FromFile(tc.args.filename)
+			got, err := FromFile(tc.args.filename)
 			if err != nil && !tc.wantErr {
 				tt.Fatalf("FromFile() error = %v, wantErr %v", err, tc.wantErr)
 			}
 			if err != nil {
 				return
 			}
-			gotNordea := gotFile.(file)
-			if gotNordea.account != tc.wantFile.account {
-				tt.Fatalf("FromFile() account = %v, want %v", gotNordea.account, tc.wantFile.account)
+			if got.account != tc.wantFile.account {
+				tt.Fatalf("FromFile() account = %v, want %v", got.account, tc.wantFile.account)
 			}
-			if !reflect.DeepEqual(gotNordea.transactions, tc.wantFile.transactions) {
-				tt.Fatalf("FromFile() = %+#v, want %+#v", gotNordea.transactions, tc.wantFile.transactions)
+			if !reflect.DeepEqual(got.transactions, tc.wantFile.transactions) {
+				tt.Fatalf("FromFile() = %+#v, want %+#v", got.transactions, tc.wantFile.transactions)
 			}
 		})
 	}
@@ -82,13 +79,13 @@ func Test_fromSlice(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantRec database.Transaction
+		wantRec Transaction
 		wantErr bool
 	}{
 		{
 			"valid",
 			args{[]string{"23.03.2015", "22.03.2015", "22.03.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Transaction{
+			Transaction{
 				TransactionDate: mustParseRFC3339("2015-03-23T00:00:00+02:00"),
 				ValueDate:       mustParseRFC3339("2015-03-22T00:00:00+02:00"),
 				PaymentDate:     mustParseRFC3339("2015-03-22T00:00:00+02:00"),
@@ -130,25 +127,25 @@ func Test_fromSlice(t *testing.T) {
 		{
 			"missing transaction date",
 			args{[]string{"", "22.03.2015", "22.03.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Transaction{},
+			Transaction{},
 			true,
 		},
 		{
 			"bad value date format",
 			args{[]string{"22.03.2015", "22.3.2015", "22.03.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Transaction{},
+			Transaction{},
 			true,
 		},
 		{
 			"bad payment date format",
 			args{[]string{"22.03.2015", "22.03.2015", "22.13.2015", "-30,00", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Transaction{},
+			Transaction{},
 			true,
 		},
 		{
 			"invalid amount",
 			args{[]string{"", "22.03.2015", "22.03.2015", "invalid", "Payee ry", "FI1012345600007890", "ASDFFIHHXXX", "Itsepalvelu", "1 27650", "", "", "", "", ""}},
-			database.Transaction{},
+			Transaction{},
 			true,
 		},
 	}
@@ -156,11 +153,12 @@ func Test_fromSlice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotRec, err := fromSlice(tt.args.r)
 			if (err != nil) != tt.wantErr {
+				t.Logf("fromSlice(%v) = %v", tt.args.r, gotRec)
 				t.Errorf("fromSlice() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotRec, tt.wantRec) {
-				t.Errorf("fromSlice() = %v, want %v", gotRec, tt.wantRec)
+			if err == nil && !reflect.DeepEqual(*gotRec, tt.wantRec) {
+				t.Errorf("fromSlice() = %+v, want %+v", *gotRec, tt.wantRec)
 			}
 		})
 	}
