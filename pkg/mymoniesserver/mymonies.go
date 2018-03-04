@@ -1,3 +1,5 @@
+// This file contains the implementation of mymonies rpc methods.
+
 package mymoniesserver
 
 import (
