@@ -7,7 +7,7 @@ import (
 	"github.com/joneskoo/mymonies/pkg/mymoniesserver/database"
 )
 
-type Server struct {
+type server struct {
 	DB *database.Postgres
 
 	logger Logger
@@ -22,7 +22,7 @@ func New(conn string, logger Logger) (http.Handler, error) {
 	if err := db.CreateTables(); err != nil {
 		return nil, err
 	}
-	server := &Server{DB: db, logger: logger}
+	server := &server{DB: db, logger: logger}
 	return server.handler(), nil
 }
 

@@ -33,6 +33,10 @@ var _request = function(method, path, body, onSuccess, onError) {
 
 // methods for MymoniesClient
 
+var Mymonies_add_import = function(server_address, add_import_req, onSuccess, onError) {
+  var full_method = server_address + "/twirp/" + "com.github.joneskoo.mymonies.Mymonies" + "/" + "AddImport";
+  _request("POST", full_method, add_import_req, onSuccess, onError);
+};
 var Mymonies_add_pattern = function(server_address, add_pattern_req, onSuccess, onError) {
   var full_method = server_address + "/twirp/" + "com.github.joneskoo.mymonies.Mymonies" + "/" + "AddPattern";
   _request("POST", full_method, add_pattern_req, onSuccess, onError);

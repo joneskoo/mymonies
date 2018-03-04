@@ -1,7 +1,9 @@
 // Package datasource declares the interface for mymonies data sources.
 package datasource
 
-import "time"
+import (
+	"time"
+)
 
 // File represents set of transaction records for a particular account.
 // Depending on the data source the time span may be a monthly statement
@@ -34,3 +36,21 @@ type Transaction interface {
 	Message() string
 	CardNumber() string
 }
+
+// func ParseFile(filename string) (*mymonies.AddImportReq, error) {
+// 	var (
+// 		req *mymonies.AddImportReq
+// 		err error
+// 	)
+// 	switch filepath.Ext(filename) {
+// 	case ".pdf":
+// 		req, err = pdf.FromFile(filename)
+// 	case ".tsv":
+// 		req, err = tsv.FromFile(filename)
+// 	case ".txt":
+// 		req, err = tsv.FromFile(filename)
+// 	default:
+// 		return fmt.Errorf("unsupported file type extension %q", ext)
+// 	}
+
+// }

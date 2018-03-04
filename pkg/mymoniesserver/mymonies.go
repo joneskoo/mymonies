@@ -13,8 +13,43 @@ import (
 	pb "github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 )
 
+// AddImport stores new transaction records.
+func (s *server) AddImport(_ context.Context, req *pb.AddImportReq) (*pb.AddImportResp, error) {
+	var importErr error
+	mustRFC3339 := func(argument, timestr string) time.Time {
+		t, err := time.Parse(time.RFC3339, timestr)
+		if err != nil {
+			importErr = twirp.InvalidArgumentError(argument, "must be RFC 3339 timestamp")
+		}
+		return t
+	}
+	var transactions []*database.Transaction
+	for _, t := range req.Transactions {
+		transactions = append(transactions, &database.Transaction{
+			TransactionDate: mustRFC3339("transaction_date", t.TransactionDate),
+			ValueDate:       mustRFC3339("value_date", t.ValueDate),
+			PaymentDate:     mustRFC3339("payment_date", t.PaymentDate),
+			Amount:          t.Amount,
+			PayeePayer:      t.PayeePayer,
+			Account:         t.Account,
+			BIC:             t.Bic,
+			Transaction:     t.Transaction,
+			Reference:       t.Reference,
+			PayerReference:  t.PayerReference,
+			Message:         t.Message,
+			CardNumber:      t.CardNumber,
+			// TagID:           t.TagId,
+		})
+		if importErr != nil {
+			return nil, importErr
+		}
+	}
+	s.DB.AddImport(req.FileName, req.Account, transactions)
+	return &pb.AddImportResp{}, nil
+}
+
 // AddPattern stores a new pattern to tag transactions on import.
-func (s *Server) AddPattern(_ context.Context, req *pb.AddPatternReq) (*pb.AddPatternResp, error) {
+func (s *server) AddPattern(_ context.Context, req *pb.AddPatternReq) (*pb.AddPatternResp, error) {
 	p := req.Pattern
 	tagID, err := strconv.Atoi(p.TagId)
 	if err != nil {
@@ -27,7 +62,7 @@ func (s *Server) AddPattern(_ context.Context, req *pb.AddPatternReq) (*pb.AddPa
 }
 
 // ListAccounts lists accounts in the database.
-func (s *Server) ListAccounts(context.Context, *pb.ListAccountsReq) (*pb.ListAccountsResp, error) {
+func (s *server) ListAccounts(context.Context, *pb.ListAccountsReq) (*pb.ListAccountsResp, error) {
 	accounts, err := s.DB.ListAccounts()
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
@@ -38,7 +73,7 @@ func (s *Server) ListAccounts(context.Context, *pb.ListAccountsReq) (*pb.ListAcc
 }
 
 // ListTags lists the transaction tags in the database.
-func (s *Server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, error) {
+func (s *server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, error) {
 	tags, err := s.DB.ListTags()
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
@@ -55,7 +90,7 @@ func (s *Server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, e
 }
 
 // ListTransactions lists transactions. Optionally a filter can be provided.
-func (s *Server) ListTransactions(_ context.Context, req *pb.ListTransactionsReq) (*pb.ListTransactionsResp, error) {
+func (s *server) ListTransactions(_ context.Context, req *pb.ListTransactionsReq) (*pb.ListTransactionsResp, error) {
 	filter, err := filterFromRequest(req)
 	if err != nil {
 		return nil, err
@@ -70,7 +105,7 @@ func (s *Server) ListTransactions(_ context.Context, req *pb.ListTransactionsReq
 }
 
 // UpdateTag sets the transaction tag id.
-func (s *Server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateTagResp, error) {
+func (s *server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateTagResp, error) {
 	txID, err := strconv.Atoi(req.TransactionId)
 	if err != nil {
 		return nil, twirp.InvalidArgumentError("transaction_id", err.Error())

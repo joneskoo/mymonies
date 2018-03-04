@@ -1,3 +1,5 @@
+// This file implements mymonies backend root HTTP handler and routing.
+
 package mymoniesserver
 
 import (
@@ -14,7 +16,7 @@ var middlewares = []middleware.Middleware{
 	middleware.SetResponseHeader("Cache-Control", "no-cache"),
 }
 
-func (s *Server) handler() http.Handler {
+func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// Twirp RPC handler with prometheus metrics

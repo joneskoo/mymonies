@@ -3,6 +3,7 @@ package com.github.joneskoo.mymonies;
 option go_package = "mymonies";
 
 service Mymonies {
+  rpc AddImport(AddImportReq) returns (AddImportResp);
   rpc AddPattern(AddPatternReq) returns (AddPatternResp);
   rpc ListAccounts(ListAccountsReq) returns (ListAccountsResp);
   rpc ListTags(ListTagsReq) returns (ListTagsResp);
@@ -57,6 +58,15 @@ message Pattern {
 /*
  * RPC request/response message definitions.
  */
+
+message AddImportReq {
+  string account = 1;
+  string file_name = 2;
+  repeated Transaction transactions = 3;
+}
+
+message AddImportResp {
+}
 
 message AddPatternReq {
   Pattern pattern = 1;
