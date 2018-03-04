@@ -9,7 +9,7 @@ function init() {
             modalTransaction: false,
             account: '',
             accounts: [],
-            tags: [],
+            tags: {},
             transactions: [],
         },
         watch: {
@@ -29,7 +29,9 @@ function init() {
 
     Mymonies_list_tags("", {}, gotTags, onXhrFail);
     function gotTags(res) {
-        app.tags = res.tags;
+        console.log(res.tags);
+        res.tags.forEach((t) => app.tags[t.name] = t.id);
+        console.log(app.tags);
     }
 
     Mymonies_list_accounts("", {}, gotAccounts, onXhrFail);
@@ -127,6 +129,17 @@ Vue.component('select-account', {
     }
 });
 
+Vue.component('tag', {
+    template: `
+        <select v-model="selected">
+                <option v-bind:value="tags[tag]" v-for="(id, tag) in tags">{{ tag }}</option>
+        </select>`,
+    props: {
+        selected: {},
+        tags: { required: true },
+    }
+});
+
 Vue.component('modal', {
     template: `
         <transition name="modal">
@@ -178,16 +191,6 @@ async function updateTransactions(account) {
         filter: {
             account: account
         },
-    }, setTransactions, onXhrFail);
-
-    function setTransactions(data) {
-        for (let tx in data.transactions) {
-            // Convert ISO date with timestamp to date
-            let vueTx = data.transactions[tx];
-            vueTx.transaction_date = vueTx.transaction_date.substr(0, 10);
-            vueTx.tag = 'foo'; // FIXME: API should return tags
-        }
-        app.transactions = data.transactions;
-    }
+    }, (data) => app.transactions = data.transactions, onXhrFail);
 }
 

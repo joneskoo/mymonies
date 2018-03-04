@@ -39,14 +39,10 @@
 						</thead>
 						<tbody>
 							<tr v-for="(tx, id) in transactions" @click="modalTransaction = id">
-								<td>{{ tx.transaction_date }}</td>
+								<td>{{ tx.transaction_date.substr(0,10) }}</td>
 								<td>{{ tx.payee_payer }}</td>
-								<td style="text-align: right">{{ tx.amount }}</td>
-								<td>
-									<select>
-										<option value="0" selected="true">{{ tx.tag_id }}</option>
-									</select>
-								</td>
+								<td style="text-align: right">{{ tx.amount.toFixed(2) }}</td>
+								<td><tag :tags="tags" :selected="tx.tag_id"></tag></td>
 							</tr>
 						</tbody>
 					</table>
