@@ -16,7 +16,7 @@ var middlewares = []middleware.Middleware{
 	middleware.SetResponseHeader("Cache-Control", "no-cache"),
 }
 
-func (s *server) handler() http.Handler {
+func handler(s *server) http.Handler {
 	mux := http.NewServeMux()
 
 	// Twirp RPC handler with prometheus metrics

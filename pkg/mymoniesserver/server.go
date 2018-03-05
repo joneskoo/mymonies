@@ -23,7 +23,7 @@ func New(conn string, logger Logger) (http.Handler, error) {
 		return nil, err
 	}
 	server := &server{DB: db, logger: logger}
-	return server.handler(), nil
+	return handler(server), nil
 }
 
 // Logger is a logging interface compatible with log.Logger.
