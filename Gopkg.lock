@@ -12,6 +12,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/gorilla/handlers"
+  packages = ["."]
+  revision = "90663712d74cb411cbef281bc1e08c19d1a76145"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/jmoiron/sqlx"
   packages = [
@@ -49,6 +55,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6063da019023ce4649f965fb71dcc9c0ed964d20be78ec9566b70642a3583567"
+  inputs-digest = "ce34abc203fab7091fe7f37d124733db55b8060d9f1470eb6b7ea0c18ecc2f33"
   solver-name = "gps-cdcl"
   solver-version = 1
