@@ -213,7 +213,11 @@ func Test_server_ListTags(t *testing.T) {
 		want    *pb.ListTagsResp
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		{
+			name: "valid",
+			req:  &pb.ListTagsReq{},
+			want: &pb.ListTagsResp{Tags: []*pb.Tag{}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

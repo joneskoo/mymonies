@@ -90,18 +90,22 @@ func (s *server) ListAccounts(context.Context, *pb.ListAccountsReq) (*pb.ListAcc
 
 // ListTags lists the transaction tags in the database.
 func (s *server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, error) {
-	tags, err := s.DB.ListTags()
+	tags := make([]*pb.Tag, 0)
+	rows, err := s.DB.Queryx("SELECT * from tags ORDER BY name")
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
-
-	// tags, err := s.DB.SumTransactionsByTag(filter)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
+	defer rows.Close()
+	for rows.Next() {
+		var t *pb.Tag
+		err := rows.StructScan(&t)
+		if err != nil {
+			return nil, twirp.InternalErrorWith(err)
+		}
+		tags = append(tags, t)
+	}
 	return &pb.ListTagsResp{
-		Tags: convertTags(tags),
+		Tags: tags,
 	}, nil
 }
 
@@ -178,18 +182,6 @@ func transactionsResponse(data []database.Transaction) *pb.ListTransactionsResp 
 		}
 	}
 	return &pb.ListTransactionsResp{Transactions: transactions}
-}
-
-func convertTags(in []database.Tag) []*pb.Tag {
-	out := make([]*pb.Tag, len(in))
-	for i, t := range in {
-		out[i] = &pb.Tag{
-			Id:   strconv.Itoa(t.ID),
-			Name: t.Name,
-			// Patterns: queries,
-		}
-	}
-	return out
 }
 
 func convertAccounts(in []string) []*pb.Account {
