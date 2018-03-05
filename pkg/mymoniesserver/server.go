@@ -1,19 +1,11 @@
 package mymoniesserver
 
-// Server implements mymonies RPC interface.
 import (
-	"net/http"
-
 	"github.com/joneskoo/mymonies/pkg/mymoniesserver/database"
+	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 )
 
-type server struct {
-	DB *database.Postgres
-
-	logger Logger
-}
-
-func New(conn string, logger Logger) (http.Handler, error) {
+func New(conn string, logger Logger) (mymonies.Mymonies, error) {
 	db, err := database.Connect(conn)
 	if err != nil {
 		return nil, err
@@ -23,7 +15,13 @@ func New(conn string, logger Logger) (http.Handler, error) {
 		return nil, err
 	}
 	server := &server{DB: db, logger: logger}
-	return handler(server), nil
+	return server, nil
+}
+
+type server struct {
+	DB *database.Postgres
+
+	logger Logger
 }
 
 // Logger is a logging interface compatible with log.Logger.
