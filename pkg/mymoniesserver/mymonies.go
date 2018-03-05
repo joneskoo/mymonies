@@ -6,8 +6,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/twitchtv/twirp"
 
 	"github.com/joneskoo/mymonies/pkg/mymoniesserver/database"
@@ -16,19 +18,59 @@ import (
 
 // AddImport stores new transaction records.
 func (s *server) AddImport(_ context.Context, req *pb.AddImportReq) (*pb.AddImportResp, error) {
+	if err := validateAddImportReq(req); err != nil {
+		return nil, err
+	}
+	txn, err := s.DB.Begin()
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+	defer txn.Rollback()
+
+	var importid int
+	const insertImport = "INSERT INTO imports (filename, account) VALUES ($1, $2) RETURNING id"
+	if err := txn.QueryRow(insertImport, req.FileName, req.Account).Scan(&importid); err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+	stmt, err := txn.Prepare(pq.CopyIn("records", "import_id", "transaction_date",
+		"value_date", "payment_date", "amount", "payee_payer", "account", "bic",
+		"transaction", "reference", "payer_reference", "message", "card_number"))
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+	defer stmt.Close()
+	for _, r := range req.Transactions {
+		_, err = stmt.Exec(importid, r.TransactionDate, r.ValueDate, r.PaymentDate,
+			r.Amount, r.PayeePayer, r.Account, r.Bic, r.Transaction, r.Reference,
+			r.PayerReference, r.Message, r.CardNumber)
+		if err != nil {
+			return nil, twirp.InternalErrorWith(err)
+		}
+	}
+	if _, err := stmt.Exec(); err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+	if err := stmt.Close(); err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+	err = txn.Commit()
+	return &pb.AddImportResp{}, err
+}
+
+func validateAddImportReq(req *pb.AddImportReq) error {
 	if req.Account == "" {
-		return nil, twirp.InvalidArgumentError("account", "must be non-empty")
+		return twirp.RequiredArgumentError("account")
 	}
 	if req.FileName == "" {
-		return nil, twirp.InvalidArgumentError("file_name", "must be non-empty")
+		return twirp.RequiredArgumentError("file_name")
 	}
 	if len(req.Transactions) == 0 {
-		return nil, twirp.InvalidArgumentError("transactions", "must be non-empty")
+		return twirp.RequiredArgumentError("transactions")
 	}
 
 	var importErr error
 	// must be RFC 3339 format date, with zero time UTC
-	mustRFC3339 := func(argument, timestr string) time.Time {
+	mustRFC3339Date := func(argument, timestr string) time.Time {
 		t, err := time.Parse(time.RFC3339, timestr)
 		if err != nil {
 			importErr = twirp.InvalidArgumentError(argument, "must be RFC 3339 timestamp")
@@ -39,53 +81,62 @@ func (s *server) AddImport(_ context.Context, req *pb.AddImportReq) (*pb.AddImpo
 		}
 		return t
 	}
-	var transactions []*database.Transaction
 	for _, t := range req.Transactions {
-		transactions = append(transactions, &database.Transaction{
-			TransactionDate: mustRFC3339("transaction_date", t.TransactionDate),
-			ValueDate:       mustRFC3339("value_date", t.ValueDate),
-			PaymentDate:     mustRFC3339("payment_date", t.PaymentDate),
-			Amount:          t.Amount,
-			PayeePayer:      t.PayeePayer,
-			Account:         t.Account,
-			BIC:             t.Bic,
-			Transaction:     t.Transaction,
-			Reference:       t.Reference,
-			PayerReference:  t.PayerReference,
-			Message:         t.Message,
-			CardNumber:      t.CardNumber,
-			// TagID:           t.TagId,
-		})
-		if importErr != nil {
-			return nil, importErr
-		}
+		mustRFC3339Date("transaction_date", t.TransactionDate)
+		mustRFC3339Date("value_date", t.ValueDate)
+		mustRFC3339Date("payment_date", t.PaymentDate)
 	}
-	s.DB.AddImport(req.FileName, req.Account, transactions)
-	return &pb.AddImportResp{}, nil
+	return importErr
 }
 
 // AddPattern stores a new pattern to tag transactions on import.
-func (s *server) AddPattern(_ context.Context, req *pb.AddPatternReq) (*pb.AddPatternResp, error) {
-	p := req.Pattern
-	tagID, err := strconv.Atoi(p.TagId)
-	if err != nil {
-		return nil, twirp.InvalidArgumentError("tag_id", "invalid tag id value")
+func (s *server) AddPattern(ctx context.Context, req *pb.AddPatternReq) (*pb.AddPatternResp, error) {
+	if req.Pattern == nil {
+		return nil, twirp.RequiredArgumentError("pattern")
 	}
-	if err := s.DB.AddPattern(p.Account, p.Query, tagID); err != nil {
+	p := req.Pattern
+
+	// List affected transaction ids
+	resp, err := s.ListTransactions(ctx, &pb.ListTransactionsReq{Filter: &pb.TransactionFilter{
+		Account: p.Account,
+		Query:   p.Query,
+	}})
+	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
-	return &pb.AddPatternResp{}, nil
+	ids := make([]string, len(resp.Transactions))
+	for _, tx := range resp.Transactions {
+		ids = append(ids, tx.Id)
+	}
+
+	txn, err := s.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer txn.Rollback()
+	_, err = txn.Exec("INSERT INTO patterns (account, query, tag_id) VALUES ($1, $2, $3)",
+		p.Account, p.Query, p.TagId)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) > 0 {
+		_, err = txn.Exec("UPDATE records SET tag_id = $1 WHERE id IN ("+strings.Join(ids, ",")+") AND tag_id IS NULL", p.TagId)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = txn.Commit()
+	return &pb.AddPatternResp{}, err
 }
 
 // ListAccounts lists accounts in the database.
 func (s *server) ListAccounts(context.Context, *pb.ListAccountsReq) (*pb.ListAccountsResp, error) {
-	accounts, err := s.DB.ListAccounts()
+	resp := &pb.ListAccountsResp{Accounts: []*pb.Account{}}
+	err := s.DB.Select(&resp.Accounts, "SELECT DISTINCT account AS number from imports")
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
-	return &pb.ListAccountsResp{
-		Accounts: convertAccounts(accounts),
-	}, nil
+	return resp, nil
 }
 
 // ListTags lists the transaction tags in the database.
@@ -97,12 +148,12 @@ func (s *server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, e
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var t *pb.Tag
+		var t pb.Tag
 		err := rows.StructScan(&t)
 		if err != nil {
 			return nil, twirp.InternalErrorWith(err)
 		}
-		tags = append(tags, t)
+		tags = append(tags, &t)
 	}
 	return &pb.ListTagsResp{
 		Tags: tags,

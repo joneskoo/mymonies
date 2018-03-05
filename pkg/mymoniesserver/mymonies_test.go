@@ -19,7 +19,7 @@ func init() {
 	flag.Parse()
 }
 
-func newServer(t *testing.T) *server {
+func newServer(t *testing.T, fixtures ...fixture) *server {
 	db, err := database.Connect(testDatabaseConn)
 	if err != nil {
 		t.Fatal("connect to test database failed:", err)
@@ -30,9 +30,20 @@ func newServer(t *testing.T) *server {
 	if err := db.CreateTables(); err != nil {
 		t.Fatal("db.CreateTables() returned error:", err)
 	}
+	for _, f := range fixtures {
+		if _, err := db.Exec(string(f)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	logger := make(mockLogger, 0)
 	return &server{DB: db, logger: logger}
 }
+
+type fixture string
+
+var (
+	tags fixture = `INSERT INTO tags ("name") VALUES ('example');`
+)
 
 type mockLogger []string
 
@@ -123,16 +134,9 @@ func Test_server_AddImport(t *testing.T) {
 		{
 			name: "value-date-time-not-zero",
 			req: &pb.AddImportReq{
-				Account:  "example",
-				FileName: "data.txt",
-				Transactions: []*pb.Transaction{
-					&pb.Transaction{
-						Amount:          10.0,
-						PaymentDate:     today,
-						TransactionDate: "1985-04-12T23:20:50.52Z",
-						ValueDate:       today,
-					},
-				},
+				Account:      "example",
+				FileName:     "data.txt",
+				Transactions: []*pb.Transaction{exampleTransaction},
 			},
 			wantErr: true,
 		},
@@ -152,7 +156,15 @@ func Test_server_AddImport(t *testing.T) {
 	}
 }
 
-var today = date(time.Now())
+var (
+	today              = date(time.Now())
+	exampleTransaction = &pb.Transaction{
+		Amount:          10.0,
+		PaymentDate:     today,
+		TransactionDate: "1985-04-12T23:20:50.52Z",
+		ValueDate:       today,
+	}
+)
 
 func date(t time.Time) string {
 	return t.UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
@@ -165,11 +177,20 @@ func Test_server_AddPattern(t *testing.T) {
 		want    *pb.AddPatternResp
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		{name: "valid",
+			req: &pb.AddPatternReq{
+				Pattern: &pb.Pattern{
+					Account: "example",
+					Query:   "",
+					TagId:   "1",
+				},
+			},
+			want: &pb.AddPatternResp{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer(t)
+			s := newServer(t, tags)
 			got, err := s.AddPattern(context.Background(), tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("server.AddPattern() error = %v, wantErr %v", err, tt.wantErr)
@@ -189,7 +210,13 @@ func Test_server_ListAccounts(t *testing.T) {
 		want    *pb.ListAccountsResp
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		{
+			name: "valid",
+			req:  &pb.ListAccountsReq{},
+			want: &pb.ListAccountsResp{
+				Accounts: []*pb.Account{},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -216,12 +243,14 @@ func Test_server_ListTags(t *testing.T) {
 		{
 			name: "valid",
 			req:  &pb.ListTagsReq{},
-			want: &pb.ListTagsResp{Tags: []*pb.Tag{}},
+			want: &pb.ListTagsResp{Tags: []*pb.Tag{
+				&pb.Tag{Id: "1", Name: "example"},
+			}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer(t)
+			s := newServer(t, tags)
 			got, err := s.ListTags(context.Background(), tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("server.ListTags() error = %v, wantErr %v", err, tt.wantErr)

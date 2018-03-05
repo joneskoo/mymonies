@@ -101,6 +101,8 @@ func (db *Postgres) CreateTables() error {
 	return txn.Commit()
 }
 
+// DropTables deletes any mymonies tables from database.
+// This is permanent cannot be undone.
 func (db *Postgres) DropTables() error {
 	txn, err := db.Begin()
 	if err != nil {
