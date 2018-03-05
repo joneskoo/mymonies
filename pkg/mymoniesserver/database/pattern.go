@@ -17,13 +17,6 @@ type Pattern struct {
 	Query   string `json:"query"`
 }
 
-var patternsCreateTableSQL = `
-CREATE TABLE IF NOT EXISTS patterns (
-	id serial		UNIQUE,
-	tag_id			int REFERENCES tags(id),
-	account			text NOT NULL,
-	query			text NOT NULL)`
-
 // AddPattern adds a new rule to map transactions on account matching query to tagID.
 func (db *Postgres) AddPattern(account, query string, tagID int) error {
 	records, err := db.Transactions(TransactionFilter{

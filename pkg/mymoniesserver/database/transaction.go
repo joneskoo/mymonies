@@ -24,24 +24,6 @@ type Transaction struct {
 	ImportID        int       `json:"import_id"`
 }
 
-var recordsCreateTableSQL = `
-CREATE TABLE IF NOT EXISTS records (
-	id			serial UNIQUE,
-	import_id		int REFERENCES imports(id) ON DELETE CASCADE,
-	transaction_date	date ,
-	value_date		date,
-	payment_date		date,
-	amount			double precision,
-	payee_payer		text,
-	account			text,
-	bic			text,
-	transaction		text,
-	reference		text,
-	payer_reference		text,
-	message			text,
-	card_number		text,
-	tag_id			int REFERENCES tags(id))`
-
 // SetRecordTag updates the Record Tag for record id to value tag.
 func (db *Postgres) SetRecordTag(id int, tag int) error {
 	tagID := sql.NullInt64{Int64: int64(tag), Valid: tag > 0}

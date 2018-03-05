@@ -10,12 +10,6 @@ type Import struct {
 	Account  string `json:"account,omitempty"`
 }
 
-var importsCreateTableSQL = `
-CREATE TABLE IF NOT EXISTS imports (
-	id		serial UNIQUE,
-	filename	text,
-	account		text NOT NULL)`
-
 // Import gets data source metadata by id.
 func (db *Postgres) Import(id int) (Import, error) {
 	t := Import{}

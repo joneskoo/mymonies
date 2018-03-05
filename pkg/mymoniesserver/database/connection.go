@@ -84,13 +84,6 @@ func (db *Postgres) NamedExec(query string, arg interface{}) (sql.Result, error)
 	return db.DB.NamedExec(query, arg)
 }
 
-var createTableSQL = []string{
-	importsCreateTableSQL,
-	tagsCreateTableSQL,
-	recordsCreateTableSQL,
-	patternsCreateTableSQL,
-}
-
 // CreateTables creates any missing database tables.
 // This is safe to call multiple times.
 func (db *Postgres) CreateTables() error {
@@ -100,8 +93,24 @@ func (db *Postgres) CreateTables() error {
 	}
 	defer txn.Rollback()
 
-	for _, q := range createTableSQL {
-		if _, err := txn.Exec(q); err != nil {
+	for _, t := range tables {
+		if _, err := txn.Exec(t.create); err != nil {
+			return err
+		}
+	}
+	return txn.Commit()
+}
+
+func (db *Postgres) DropTables() error {
+	txn, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer txn.Rollback()
+
+	for i := len(tables) - 1; i >= 0; i-- {
+		t := tables[i]
+		if _, err := txn.Exec(t.drop); err != nil {
 			return err
 		}
 	}

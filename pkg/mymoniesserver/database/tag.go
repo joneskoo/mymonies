@@ -6,11 +6,6 @@ type Tag struct {
 	Name string `json:"name"`
 }
 
-var tagsCreateTableSQL = `
-CREATE TABLE IF NOT EXISTS tags (
-	id		serial UNIQUE,
-	name		text UNIQUE)`
-
 // Tag gets tag details from database by id.
 func (db *Postgres) Tag(id int) (Tag, error) {
 	t := Tag{}
