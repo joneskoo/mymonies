@@ -193,7 +193,7 @@ func (s *server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateT
 
 func filterFromRequest(req *pb.ListTransactionsReq) (*database.TransactionFilter, error) {
 	if req.Filter == nil {
-		return &database.TransactionFilter{}, nil
+		return nil, twirp.RequiredArgumentError("filter")
 	}
 	var id int
 	if req.Filter.Id != "" {
@@ -212,13 +212,25 @@ func filterFromRequest(req *pb.ListTransactionsReq) (*database.TransactionFilter
 }
 
 func transactionsResponse(data []database.Transaction) *pb.ListTransactionsResp {
+	rfc3339 := func(t time.Time) string {
+		if t.IsZero() {
+			return ""
+		}
+		return t.Format(time.RFC3339)
+	}
+	id := func(i int) string {
+		if i == 0 {
+			return ""
+		}
+		return strconv.Itoa(i)
+	}
 	transactions := make([]*pb.Transaction, len(data))
 	for i, t := range data {
 		transactions[i] = &pb.Transaction{
 			Id:              strconv.Itoa(t.ID),
-			TransactionDate: t.TransactionDate.Format(time.RFC3339),
-			ValueDate:       t.ValueDate.Format(time.RFC3339),
-			PaymentDate:     t.PaymentDate.Format(time.RFC3339),
+			TransactionDate: rfc3339(t.TransactionDate),
+			ValueDate:       rfc3339(t.ValueDate),
+			PaymentDate:     rfc3339(t.PaymentDate),
 			Amount:          t.Amount,
 			PayeePayer:      t.PayeePayer,
 			Account:         t.Account,
@@ -228,19 +240,9 @@ func transactionsResponse(data []database.Transaction) *pb.ListTransactionsResp 
 			PayerReference:  t.PayerReference,
 			Message:         t.Message,
 			CardNumber:      t.CardNumber,
-			TagId:           strconv.Itoa(t.TagID),
-			ImportId:        strconv.Itoa(t.ImportID),
+			TagId:           id(t.TagID),
+			ImportId:        id(t.ImportID),
 		}
 	}
 	return &pb.ListTransactionsResp{Transactions: transactions}
-}
-
-func convertAccounts(in []string) []*pb.Account {
-	out := make([]*pb.Account, len(in))
-	for i, t := range in {
-		out[i] = &pb.Account{
-			Number: t,
-		}
-	}
-	return out
 }

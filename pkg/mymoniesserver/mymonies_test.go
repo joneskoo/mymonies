@@ -42,7 +42,14 @@ func newServer(t *testing.T, fixtures ...fixture) *server {
 type fixture string
 
 var (
-	tags fixture = `INSERT INTO tags ("name") VALUES ('example');`
+	fixtureTags fixture = `
+		INSERT INTO tags (name) VALUES ('example');
+		INSERT INTO tags (name) VALUES ('example2');
+	`
+	fixtureTransactions fixture = `
+		INSERT INTO imports (filename, account) VALUES ('asdf', 'foo');
+		INSERT INTO records (import_id, transaction_date, value_date, payment_date, amount) VALUES (1, '2018-03-01'::date, '2018-03-02'::date, '2018-03-03'::date, 10);
+	`
 )
 
 type mockLogger []string
@@ -177,7 +184,8 @@ func Test_server_AddPattern(t *testing.T) {
 		want    *pb.AddPatternResp
 		wantErr bool
 	}{
-		{name: "valid",
+		{
+			name: "valid",
 			req: &pb.AddPatternReq{
 				Pattern: &pb.Pattern{
 					Account: "example",
@@ -190,7 +198,7 @@ func Test_server_AddPattern(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer(t, tags)
+			s := newServer(t, fixtureTags)
 			got, err := s.AddPattern(context.Background(), tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("server.AddPattern() error = %v, wantErr %v", err, tt.wantErr)
@@ -245,12 +253,13 @@ func Test_server_ListTags(t *testing.T) {
 			req:  &pb.ListTagsReq{},
 			want: &pb.ListTagsResp{Tags: []*pb.Tag{
 				&pb.Tag{Id: "1", Name: "example"},
+				&pb.Tag{Id: "2", Name: "example2"},
 			}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer(t, tags)
+			s := newServer(t, fixtureTags)
 			got, err := s.ListTags(context.Background(), tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("server.ListTags() error = %v, wantErr %v", err, tt.wantErr)
@@ -270,11 +279,31 @@ func Test_server_ListTransactions(t *testing.T) {
 		want    *pb.ListTransactionsResp
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		{
+			name: "valid all transactions",
+			req:  &pb.ListTransactionsReq{Filter: &pb.TransactionFilter{}},
+			want: &pb.ListTransactionsResp{
+				Transactions: []*pb.Transaction{
+					{
+						Id:              "1",
+						Amount:          10,
+						ImportId:        "1",
+						TransactionDate: "2018-03-01T00:00:00Z",
+						ValueDate:       "2018-03-02T00:00:00Z",
+						PaymentDate:     "2018-03-03T00:00:00Z",
+					},
+				},
+			},
+		},
+		{
+			name:    "missing-filter",
+			req:     &pb.ListTransactionsReq{},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer(t)
+			s := newServer(t, fixtureTransactions)
 			got, err := s.ListTransactions(context.Background(), tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("server.ListTransactions() error = %v, wantErr %v", err, tt.wantErr)
@@ -294,11 +323,15 @@ func Test_server_UpdateTag(t *testing.T) {
 		want    *pb.UpdateTagResp
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		{
+			name: "valid",
+			req:  &pb.UpdateTagReq{TagId: "1", TransactionId: "1"},
+			want: &pb.UpdateTagResp{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer(t)
+			s := newServer(t, fixtureTags, fixtureTransactions)
 			got, err := s.UpdateTag(context.Background(), tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("server.UpdateTag() error = %v, wantErr %v", err, tt.wantErr)
