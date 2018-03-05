@@ -4,6 +4,7 @@ package mymoniesserver
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -15,11 +16,26 @@ import (
 
 // AddImport stores new transaction records.
 func (s *server) AddImport(_ context.Context, req *pb.AddImportReq) (*pb.AddImportResp, error) {
+	if req.Account == "" {
+		return nil, twirp.InvalidArgumentError("account", "must be non-empty")
+	}
+	if req.FileName == "" {
+		return nil, twirp.InvalidArgumentError("file_name", "must be non-empty")
+	}
+	if len(req.Transactions) == 0 {
+		return nil, twirp.InvalidArgumentError("transactions", "must be non-empty")
+	}
+
 	var importErr error
+	// must be RFC 3339 format date, with zero time UTC
 	mustRFC3339 := func(argument, timestr string) time.Time {
 		t, err := time.Parse(time.RFC3339, timestr)
 		if err != nil {
 			importErr = twirp.InvalidArgumentError(argument, "must be RFC 3339 timestamp")
+		}
+		if hour, min, sec := t.Clock(); hour != 0 || min != 0 || sec != 0 {
+			e := fmt.Sprintf("time must be zero UTC, was %02d:%02d:%02d", hour, min, sec)
+			importErr = twirp.InvalidArgumentError(argument, e)
 		}
 		return t
 	}
