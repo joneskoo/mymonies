@@ -4,6 +4,7 @@ package mymoniesserver
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -162,87 +163,90 @@ func (s *server) ListTags(context.Context, *pb.ListTagsReq) (*pb.ListTagsResp, e
 
 // ListTransactions lists transactions. Optionally a filter can be provided.
 func (s *server) ListTransactions(_ context.Context, req *pb.ListTransactionsReq) (*pb.ListTransactionsResp, error) {
-	filter, err := filterFromRequest(req)
+	query, args, err := transactionFilterQuery(req.Filter)
 	if err != nil {
 		return nil, err
 	}
 
-	records, err := s.DB.Transactions(*filter)
+	rows, err := s.DB.NamedQuery(query, args)
 	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	transactions := make([]*pb.Transaction, 0)
+	for rows.Next() {
+		var t pb.Transaction
+		_ = rows.StructScan(&t)
+		transactions = append(transactions, &t)
+	}
+	if rows.Err() != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
 
-	return transactionsResponse(records), nil
+	return &pb.ListTransactionsResp{Transactions: transactions}, nil
 }
 
 // UpdateTag sets the transaction tag id.
 func (s *server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateTagResp, error) {
-	txID, err := strconv.Atoi(req.TransactionId)
-	if err != nil {
-		return nil, twirp.InvalidArgumentError("transaction_id", err.Error())
+	if req.TransactionId == "" {
+		return nil, twirp.RequiredArgumentError("transaction_id")
 	}
-	tagID, err := strconv.Atoi(req.TagId)
-	if err != nil {
+
+	_, err := strconv.ParseInt(req.TagId, 10, 64)
+	if req.TagId != "" && err != nil {
 		return nil, twirp.InvalidArgumentError("tag_id", err.Error())
 	}
-	if err := s.DB.SetRecordTag(txID, tagID); err != nil {
-		return nil, err
+
+	_, err = s.DB.Exec("UPDATE records SET tag_id = $1 WHERE id = $2",
+		sql.NullString{String: req.TagId, Valid: req.TagId == ""},
+		req.TransactionId)
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
 	}
 	return &pb.UpdateTagResp{}, nil
 }
 
-func filterFromRequest(req *pb.ListTransactionsReq) (*database.TransactionFilter, error) {
-	if req.Filter == nil {
-		return nil, twirp.RequiredArgumentError("filter")
+func transactionFilterQuery(tf *pb.TransactionFilter) (string, map[string]interface{}, error) {
+	if tf == nil {
+		return "", nil, twirp.RequiredArgumentError("filter")
 	}
-	var id int
-	if req.Filter.Id != "" {
-		var err error
-		id, err = strconv.Atoi(req.Filter.Id)
-		if err != nil && len(req.Filter.Id) > 0 {
-			return nil, twirp.InvalidArgumentError("id", err.Error())
-		}
-	}
-	return &database.TransactionFilter{
-		Id:      id,
-		Account: req.Filter.Account,
-		Month:   req.Filter.Month,
-		Query:   req.Filter.Query,
-	}, nil
-}
 
-func transactionsResponse(data []database.Transaction) *pb.ListTransactionsResp {
-	rfc3339 := func(t time.Time) string {
-		if t.IsZero() {
-			return ""
-		}
-		return t.Format(time.RFC3339)
+	query := &database.SelectQuery{
+		Columns: []string{"records.*"},
+		From: `records
+			LEFT OUTER JOIN imports ON records.import_id = imports.id`,
+		OrderBy: "transaction_date DESC, records.id",
 	}
-	id := func(i int) string {
-		if i == 0 {
-			return ""
-		}
-		return strconv.Itoa(i)
+	args := make(map[string]interface{})
+
+	if tf.Id != "" {
+		query.AndWhere("records.id = :record_id")
+		args["record_id"] = tf.Id
 	}
-	transactions := make([]*pb.Transaction, len(data))
-	for i, t := range data {
-		transactions[i] = &pb.Transaction{
-			Id:              strconv.Itoa(t.ID),
-			TransactionDate: rfc3339(t.TransactionDate),
-			ValueDate:       rfc3339(t.ValueDate),
-			PaymentDate:     rfc3339(t.PaymentDate),
-			Amount:          t.Amount,
-			PayeePayer:      t.PayeePayer,
-			Account:         t.Account,
-			Bic:             t.BIC,
-			Transaction:     t.Transaction,
-			Reference:       t.Reference,
-			PayerReference:  t.PayerReference,
-			Message:         t.Message,
-			CardNumber:      t.CardNumber,
-			TagId:           id(t.TagID),
-			ImportId:        id(t.ImportID),
-		}
+
+	if tf.Account != "" {
+		query.AndWhere("imports.account = :account")
+		args["account"] = tf.Account
 	}
-	return &pb.ListTransactionsResp{Transactions: transactions}
+
+	if tf.Month != "" {
+		var startDate, endDate time.Time
+		var err error
+		startDate, err = time.Parse("2006-01", tf.Month)
+		if err != nil {
+			return "", nil, twirp.InvalidArgumentError("month", err.Error())
+		}
+		endDate = startDate.AddDate(0, 1, -1)
+		query.AndWhere("records.transaction_date BETWEEN :start AND :end")
+		args["start"] = startDate
+		args["end"] = endDate
+	}
+
+	if tf.Query != "" {
+		query.AndWhere(":search IN (payee_payer, records.account, transaction, reference, payer_reference, message)")
+		args["search"] = tf.Query
+	}
+
+	return query.SQL(), args, nil
 }

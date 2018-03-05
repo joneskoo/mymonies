@@ -2,7 +2,7 @@ package database
 
 import "strings"
 
-type selectQuery struct {
+type SelectQuery struct {
 	Columns []string
 	From    string
 	Where   []string
@@ -10,7 +10,7 @@ type selectQuery struct {
 	OrderBy string
 }
 
-func (q selectQuery) SQL() string {
+func (q SelectQuery) SQL() string {
 	columns := "SELECT " + strings.Join(q.Columns, ", ")
 	var from, where, groupBy, orderBy string
 	if len(q.From) > 0 {
@@ -28,6 +28,6 @@ func (q selectQuery) SQL() string {
 	return strings.Join([]string{columns, from, where, groupBy, orderBy}, "")
 }
 
-func (q *selectQuery) AndWhere(cond string) {
+func (q *SelectQuery) AndWhere(cond string) {
 	q.Where = append(q.Where, cond)
 }

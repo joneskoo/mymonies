@@ -328,6 +328,21 @@ func Test_server_UpdateTag(t *testing.T) {
 			req:  &pb.UpdateTagReq{TagId: "1", TransactionId: "1"},
 			want: &pb.UpdateTagResp{},
 		},
+		{
+			name:    "missing transaction id",
+			req:     &pb.UpdateTagReq{TagId: "1"},
+			wantErr: true,
+		},
+		{
+			name:    "malformed tag id",
+			req:     &pb.UpdateTagReq{TagId: "x", TransactionId: "1"},
+			wantErr: true,
+		},
+		{
+			name:    "malformed transaction id",
+			req:     &pb.UpdateTagReq{TagId: "1", TransactionId: "x"},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
