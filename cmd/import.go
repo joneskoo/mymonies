@@ -70,7 +70,7 @@ func readFiles(args []string) ([]datasource.File, error) {
 	for _, filename := range args {
 		f, err := parseFile(filename)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v: %v", filename, err)
 		}
 		files = append(files, f)
 		fmt.Println(filename)
