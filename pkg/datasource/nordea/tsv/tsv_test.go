@@ -1,6 +1,7 @@
 package tsv
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -27,11 +28,11 @@ func TestFromFile(t *testing.T) {
 		wantErr  bool
 	}{
 		{"missing file", args{""}, File{}, true},
-		{"invalid format", args{"test_data/invalid.txt"}, File{}, true},
+		{"invalid format", args{filepath.Join("testdata", "invalid.txt")}, File{}, true},
 
 		{
 			"valid file",
-			args{"test_data/Tapahtumat_FI4612345600007890_20130808_20130808.txt"},
+			args{filepath.Join("testdata", "Tapahtumat_FI4612345600007890_20130808_20130808.txt")},
 			File{
 				filename: "Tapahtumat_FI4612345600007890_20130808_20130808.txt",
 				account:  "FI4612345600007890",
