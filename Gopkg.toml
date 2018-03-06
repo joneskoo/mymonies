@@ -33,3 +33,7 @@
   branch = "master"
   name = "rsc.io/pdf"
   source = "github.com/joneskoo/pdf"
+
+[prune]
+  go-tests = true
+  unused-packages = true
