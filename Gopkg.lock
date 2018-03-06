@@ -94,6 +94,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/rakyll/statik"
+  packages = ["fs"]
+  revision = "fd36b3595eb2ec8da4b8153b107f7ea08504899d"
+  version = "v0.1.1"
+
+[[projects]]
   name = "github.com/russross/blackfriday"
   packages = ["."]
   revision = "55d61fa8aa702f59229e6cff85793c22e580eaf5"
@@ -186,6 +192,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4ca8f096bc0a90cc1f714aec4f20a1db293514924caeae1f77d07a16a79e37cb"
+  inputs-digest = "32d66315bde9b113e96b511423bbf477965a4c7ff33f5b5e28203ba53abd01f2"
   solver-name = "gps-cdcl"
   solver-version = 1

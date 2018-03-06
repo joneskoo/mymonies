@@ -9,7 +9,10 @@ import (
 	"github.com/joneskoo/mymonies/pkg/middleware"
 	"github.com/joneskoo/mymonies/pkg/mymoniesserver"
 	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
+	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cobra"
+	// Register statik assets (generated from 'public')
+	_ "github.com/joneskoo/mymonies/pkg/statik"
 )
 
 // serverCmd represents the server command
@@ -59,7 +62,11 @@ func handler(server mymonies.Mymonies) http.Handler {
 	// mux.Handle("/metrics", promhttp.Handler())
 
 	// Static file server
-	mux.Handle("/", http.FileServer(http.Dir("frontend")))
+	statikFS, err := fs.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mux.Handle("/", http.FileServer(statikFS))
 
 	// Apply middlewares
 	var h http.Handler = mux
