@@ -4,11 +4,15 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/joneskoo/mymonies/pkg/datasource"
+	"github.com/joneskoo/mymonies/pkg/datasource/nordea/pdf"
+	"github.com/joneskoo/mymonies/pkg/datasource/nordea/tsv"
 	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 )
 
@@ -26,13 +30,17 @@ func main() {
 	client := mymonies.NewMymoniesProtobufClient(*server, &http.Client{})
 
 	for _, filename := range flag.Args() {
-		req, err := datasource.ParseFile(filename)
+		file, err := parseFile(filename)
 		if err != nil {
 			logger.Fatalf("parsing %v: %v", filename, err)
 		}
-		_, err = client.AddImport(ctx, req)
+		_, err = client.AddImport(ctx, &mymonies.AddImportReq{
+			Account:      file.Account(),
+			FileName:     file.FileName(),
+			Transactions: file.Transactions(),
+		})
 		if err != nil {
-			logger.Fatal(err)
+			logger.Fatalf("%v: %v", filename, err)
 		}
 		// fmt.Printf("Account: %q File: %q\n", f.Account(), f.FileName())
 		// for _, tx := range f.Transactions() {
@@ -41,4 +49,19 @@ func main() {
 		// fmt.Println("---------------------------")
 	}
 	logger.Println("All done")
+}
+
+func parseFile(filename string) (datasource.File, error) {
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".pdf":
+		return pdf.FromFile(filename)
+	case ".tsv":
+		return tsv.FromFile(filename)
+	case ".txt":
+		return tsv.FromFile(filename)
+	default:
+		return nil, fmt.Errorf("file type extension %q is not supported", ext)
+	}
+
 }
