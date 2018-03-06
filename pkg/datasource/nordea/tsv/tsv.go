@@ -103,7 +103,7 @@ func fromSlice(r []string) (t *mymonies.Transaction, err error) {
 		Transaction:     r[7],
 		Reference:       r[8],
 		PayerReference:  r[9],
-		Message:         r[10],
+		Message:         joinMessage(r[10]),
 		CardNumber:      r[11],
 		// Receipt:         r[12], // receipt column ignored
 	}
@@ -111,6 +111,34 @@ func fromSlice(r []string) (t *mymonies.Transaction, err error) {
 		return nil, p.err
 	}
 	return t, p.err
+}
+
+// joinMessage removes "line wrapping" from message field.
+//
+// If the message is over 35 characters long, there is a space after
+// every 35 characters in the Nordea TSV format. It is like it
+// was line wrapped, but new lines replaced with space.
+//
+//	Lorem ipsum dolor sit amet, consec tetur adipiscing elit. Curabitur d
+//	                                  ^ extra space
+func joinMessage(msg string) string {
+	var b bytes.Buffer
+	for i := 0; i < len(msg); i += 36 {
+		end := i + 35
+		if end > len(msg)-1 {
+			end = len(msg)
+		} else {
+			// If format changes and there are no extra spaces, return original.
+			if end+1 < len(msg) && msg[end] != ' ' {
+				return msg
+			}
+		}
+		// if msg[end] != ' ' {
+		// 	return msg
+		// }
+		b.Write([]byte(msg[i:end]))
+	}
+	return b.String()
 }
 
 type safeParser struct {
