@@ -15,7 +15,7 @@ import (
 // serverCmd represents the server command
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "backend server",
+	Short: "Mymonies backend server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conn, _ := cmd.Flags().GetString("conn")
 		listen, _ := cmd.Flags().GetString("listen")
