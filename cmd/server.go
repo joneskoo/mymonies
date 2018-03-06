@@ -1,7 +1,6 @@
-package main
+package cmd
 
 import (
-	"flag"
 	"log"
 	"net"
 	"net/http"
@@ -10,22 +9,33 @@ import (
 	"github.com/joneskoo/mymonies/pkg/middleware"
 	"github.com/joneskoo/mymonies/pkg/mymoniesserver"
 	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	conn := flag.String("postgres", "database=mymonies", "PostgreSQL connection string")
-	listen := flag.String("listen", defaultListen(), "HTTP server listen address")
-	flag.Parse()
+// serverCmd represents the server command
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "backend server",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		conn, _ := cmd.Flags().GetString("conn")
+		listen, _ := cmd.Flags().GetString("listen")
+		logger := log.New(os.Stdout, "[mymonies] ", log.Lshortfile)
+		logger.Println("Listening on http://" + listen)
 
-	logger := log.New(os.Stdout, "[mymonies] ", log.Lshortfile)
-	logger.Println("Listening on http://" + *listen)
+		server, err := mymoniesserver.New(conn, logger)
+		if err != nil {
+			return err
+		}
+		h := handler(server)
+		return http.ListenAndServe(listen, h)
+	},
+}
 
-	server, err := mymoniesserver.New(*conn, logger)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	h := handler(server)
-	logger.Fatal(http.ListenAndServe(*listen, h))
+func init() {
+	rootCmd.AddCommand(serverCmd)
+
+	serverCmd.Flags().String("conn", "database=mymonies", "PostgreSQL connection string")
+	serverCmd.Flags().String("listen", defaultListen(), "HTTP server listen address")
 }
 
 func defaultListen() string {
