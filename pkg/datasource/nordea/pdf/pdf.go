@@ -16,6 +16,78 @@ import (
 	"rsc.io/pdf"
 )
 
+// FromFile loads Transaction records from a Nordea TSV file.
+func FromFile(filename string) (datasource.File, error) {
+	var (
+		lines []string
+		err   error
+	)
+	lines, err = extractText(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract text from PDF: %v", err)
+	}
+	account, transactions, err := parseLines(lines)
+	if err != nil {
+		return nil, err
+	}
+	return &bill{account, filename, transactions}, nil
+}
+
+func parseLines(lines []string) (account string, transactions []*mymonies.Transaction, err error) {
+	var billTotal float64
+	var dueDate time.Time
+	for _, line := range lines {
+		switch {
+		case accountPattern.MatchString(line):
+			match := accountPattern.FindStringSubmatch(line)
+			account = match[1]
+		case billTotalPattern.MatchString(line):
+			match := billTotalPattern.FindStringSubmatch(line)
+			due, _ := match[1], match[2]
+			dueDate, err = time.Parse("02.01.06", due)
+			if err != nil {
+				return "", nil, err
+			}
+		case paymentsTotalPattern.MatchString(line):
+			match := paymentsTotalPattern.FindStringSubmatch(line)
+			total := match[1]
+			billTotal, err = parseAmount(total)
+			if err != nil {
+				return "", nil, err
+			}
+		}
+	}
+	if account == "" {
+		return "", nil, fmt.Errorf("could not find account number header from file")
+	}
+
+	p := new(safeParser)
+	transactions = make([]*mymonies.Transaction, 0)
+	for _, line := range lines {
+		if transactionPattern.MatchString(line) {
+			match := transactionPattern.FindStringSubmatch(line)
+			transactions = append(transactions, &mymonies.Transaction{
+				TransactionDate: date(fixYear(p.date(match[1], "transaction date"), dueDate)),
+				ValueDate:       date(fixYear(p.date(match[2], "interest date"), dueDate)),
+				Transaction:     match[3],
+				PayeePayer:      match[4],
+				Amount:          p.amount(match[5], "amount"),
+			})
+		}
+	}
+	if p.err != nil {
+		return "", nil, p.err
+	}
+	sum := 0.0
+	for _, tx := range transactions {
+		sum += tx.Amount
+	}
+	if math.Abs(billTotal-sum) > 0.009 {
+		return "", nil, fmt.Errorf("transaction amounts (%.2f) != bill total (%.2f)", sum, billTotal)
+	}
+	return account, transactions, nil
+}
+
 var (
 	accountPattern       = regexp.MustCompile(`^(?P<Account>\d{16}/[A-ZÅÄÖ ]*[A-ZÅÄÖ]) *$`)
 	billTotalPattern     = regexp.MustCompile(`^ *LASKUN LOPPUSALDO YHTEENSÄ *(?P<DueDate>\d\d\.\d\d\.\d\d) *(?P<BillTotal>[\d ]+\.\d\d) *$`)
@@ -35,71 +107,6 @@ func (b bill) Account() string {
 	return account
 }
 func (b bill) Transactions() []*mymonies.Transaction { return b.transactions }
-
-// FromFile loads Transaction records from a Nordea TSV file.
-func FromFile(filename string) (datasource.File, error) {
-	var (
-		lines []string
-		err   error
-	)
-	lines, err = extractText(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract text from PDF: %v", err)
-	}
-
-	var (
-		account   string
-		billTotal float64
-		dueDate   time.Time
-	)
-	for _, line := range lines {
-		switch {
-		case accountPattern.MatchString(line):
-			match := accountPattern.FindStringSubmatch(line)
-			account = match[1]
-		case billTotalPattern.MatchString(line):
-			match := billTotalPattern.FindStringSubmatch(line)
-			due, _ := match[1], match[2]
-			dueDate, err = time.Parse("02.01.06", due)
-			if err != nil {
-				return nil, err
-			}
-		case paymentsTotalPattern.MatchString(line):
-			match := paymentsTotalPattern.FindStringSubmatch(line)
-			total := match[1]
-			billTotal, err = parseAmount(total)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	p := new(safeParser)
-	var transactions []*mymonies.Transaction
-	for _, line := range lines {
-		if transactionPattern.MatchString(line) {
-			match := transactionPattern.FindStringSubmatch(line)
-			transactions = append(transactions, &mymonies.Transaction{
-				TransactionDate: date(fixYear(p.date(match[1], "transaction date"), dueDate)),
-				ValueDate:       date(fixYear(p.date(match[2], "interest date"), dueDate)),
-				Transaction:     match[3],
-				PayeePayer:      match[4],
-				Amount:          p.amount(match[5], "amount"),
-			})
-		}
-	}
-	if p.err != nil {
-		return nil, p.err
-	}
-	sum := 0.0
-	for _, tx := range transactions {
-		sum += tx.Amount
-	}
-	if math.Abs(billTotal-sum) >= 0.01 {
-		return nil, fmt.Errorf("sum of transaction amounts %.2f != bill total %.2f", sum, billTotal)
-	}
-	return &bill{account, filename, transactions}, nil
-}
 
 type safeParser struct {
 	err error
