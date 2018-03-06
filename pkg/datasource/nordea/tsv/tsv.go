@@ -11,10 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joneskoo/mymonies/pkg/datasource"
+	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 )
 
 // FromFile loads transaction records from a Nordea TSV file.
-func FromFile(filename string) (*File, error) {
+func FromFile(filename string) (datasource.File, error) {
 	lineEnd := []byte("\n\r\n")
 
 	data, err := ioutil.ReadFile(filename)
@@ -36,10 +39,10 @@ func FromFile(filename string) (*File, error) {
 	r.Comma = '\t'
 	r.FieldsPerRecord = 14
 	_, _ = r.Read() // ignore first line
-	var transactions []*Transaction
+	var transactions []*mymonies.Transaction
 loop:
 	for {
-		var t *Transaction
+		var t *mymonies.Transaction
 		r, err := r.Read()
 		switch err {
 		case io.EOF:
@@ -58,28 +61,12 @@ loop:
 type File struct {
 	filename     string
 	account      string
-	transactions []*Transaction
+	transactions []*mymonies.Transaction
 }
 
-func (f File) Account() string              { return f.account }
-func (f File) FileName() string             { return filepath.Base(f.filename) }
-func (f File) Transactions() []*Transaction { return f.transactions }
-
-type Transaction struct {
-	ID              string
-	TransactionDate time.Time
-	ValueDate       time.Time
-	PaymentDate     time.Time
-	Amount          float64
-	PayeePayer      string
-	Account         string
-	BIC             string
-	Transaction     string
-	Reference       string
-	PayerReference  string
-	Message         string
-	CardNumber      string
-}
+func (f File) Account() string                       { return f.account }
+func (f File) FileName() string                      { return filepath.Base(f.filename) }
+func (f File) Transactions() []*mymonies.Transaction { return f.transactions }
 
 var fields = []string{
 	"Kirjauspäivä",
@@ -99,16 +86,20 @@ var fields = []string{
 
 const dateFormat = "02.01.2006"
 
-func fromSlice(r []string) (t *Transaction, err error) {
+func date(t time.Time) string {
+	return t.UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
+}
+
+func fromSlice(r []string) (t *mymonies.Transaction, err error) {
 	p := new(safeParser)
-	t = &Transaction{
+	t = &mymonies.Transaction{
 		TransactionDate: p.date(r[0], "transaction date"),
 		ValueDate:       p.date(r[1], "value date"),
 		PaymentDate:     p.date(r[2], "payment date"),
 		Amount:          p.amount(r[3], "amount"),
 		PayeePayer:      r[4],
 		Account:         r[5],
-		BIC:             r[6],
+		Bic:             r[6],
 		Transaction:     r[7],
 		Reference:       r[8],
 		PayerReference:  r[9],
@@ -126,17 +117,17 @@ type safeParser struct {
 	err error
 }
 
-func (p *safeParser) date(v, field string) time.Time {
+func (p *safeParser) date(v, field string) string {
 	if p.err != nil {
-		return time.Time{}
+		return ""
 	}
 	var t time.Time
 	t, p.err = time.ParseInLocation(dateFormat, v, helsinki)
 	if p.err != nil {
 		p.err = fmt.Errorf("bad %v format: %v", field, p.err)
-		return time.Time{}
+		return ""
 	}
-	return t
+	return t.UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
 }
 
 func (p *safeParser) amount(v, field string) (a float64) {

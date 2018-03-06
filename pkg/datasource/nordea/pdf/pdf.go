@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joneskoo/mymonies/pkg/datasource"
+
+	"github.com/joneskoo/mymonies/pkg/rpc/mymonies"
 	"rsc.io/pdf"
 )
 
@@ -20,30 +23,21 @@ var (
 	transactionPattern   = regexp.MustCompile(`^(?P<Date>\d+\.\d+\.) +(?P<InterestDate>\d+\.\d+\.) +(?P<Transaction>[^ ]{12}) +(?P<Payee>.*[^ ]) +(?P<Amount>\d+\.\d\d-?) *$`)
 )
 
-type Bill struct {
+type bill struct {
 	file         string
 	account      string
-	transactions []*Transaction
+	transactions []*mymonies.Transaction
 }
 
-func (b Bill) FileName() string { return filepath.Base(b.file) }
-func (b Bill) Account() string {
+func (b bill) FileName() string { return filepath.Base(b.file) }
+func (b bill) Account() string {
 	account := "************" + b.account[12:]
 	return account
 }
-func (b Bill) Transactions() []*Transaction { return b.transactions }
-
-type Transaction struct {
-	TransactionDate time.Time
-	ValueDate       time.Time
-	Amount          float64
-	PayeePayer      string
-	Account         string
-	Transaction     string
-}
+func (b bill) Transactions() []*mymonies.Transaction { return b.transactions }
 
 // FromFile loads Transaction records from a Nordea TSV file.
-func FromFile(filename string) (*Bill, error) {
+func FromFile(filename string) (datasource.File, error) {
 	var (
 		lines []string
 		err   error
@@ -81,13 +75,13 @@ func FromFile(filename string) (*Bill, error) {
 	}
 
 	p := new(safeParser)
-	var transactions []*Transaction
+	var transactions []*mymonies.Transaction
 	for _, line := range lines {
 		if transactionPattern.MatchString(line) {
 			match := transactionPattern.FindStringSubmatch(line)
-			transactions = append(transactions, &Transaction{
-				TransactionDate: fixYear(p.date(match[1], "transaction date"), dueDate),
-				ValueDate:       fixYear(p.date(match[2], "interest date"), dueDate),
+			transactions = append(transactions, &mymonies.Transaction{
+				TransactionDate: date(fixYear(p.date(match[1], "transaction date"), dueDate)),
+				ValueDate:       date(fixYear(p.date(match[2], "interest date"), dueDate)),
 				Transaction:     match[3],
 				PayeePayer:      match[4],
 				Amount:          p.amount(match[5], "amount"),
@@ -104,7 +98,7 @@ func FromFile(filename string) (*Bill, error) {
 	if math.Abs(billTotal-sum) >= 0.01 {
 		return nil, fmt.Errorf("sum of transaction amounts %.2f != bill total %.2f", sum, billTotal)
 	}
-	return &Bill{account: account, file: filename, transactions: transactions}, nil
+	return &bill{account, filename, transactions}, nil
 }
 
 type safeParser struct {
@@ -196,4 +190,8 @@ func fixYear(t time.Time, reference time.Time) time.Time {
 		t = t.AddDate(-1, 0, 0)
 	}
 	return t
+}
+
+func date(t time.Time) string {
+	return t.UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
 }
