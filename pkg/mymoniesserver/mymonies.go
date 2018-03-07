@@ -40,10 +40,22 @@ func (s *server) AddImport(_ context.Context, req *pb.AddImportReq) (*pb.AddImpo
 		return nil, twirp.InternalErrorWith(err)
 	}
 	defer stmt.Close()
+	s.logger.Println("importing", len(req.Transactions), "transactions")
 	for _, r := range req.Transactions {
-		_, err = stmt.Exec(importid, r.TransactionDate, r.ValueDate, r.PaymentDate,
-			r.Amount, r.PayeePayer, r.Account, r.Bic, r.Transaction, r.Reference,
-			r.PayerReference, r.Message, r.CardNumber)
+		_, err = stmt.Exec(
+			importid,
+			sql.NullString{String: r.TransactionDate, Valid: r.TransactionDate != ""},
+			sql.NullString{String: r.ValueDate, Valid: r.ValueDate != ""},
+			sql.NullString{String: r.PaymentDate, Valid: r.PaymentDate != ""},
+			r.Amount,
+			r.PayeePayer,
+			r.Account,
+			r.Bic,
+			r.Transaction,
+			r.Reference,
+			r.PayerReference,
+			r.Message,
+			r.CardNumber)
 		if err != nil {
 			return nil, twirp.InternalErrorWith(err)
 		}
@@ -71,7 +83,10 @@ func validateAddImportReq(req *pb.AddImportReq) error {
 
 	var importErr error
 	// must be RFC 3339 format date, with zero time UTC
-	mustRFC3339Date := func(argument, timestr string) time.Time {
+	mustRFC3339Date := func(argument, timestr string) {
+		if timestr == "" {
+			return
+		}
 		t, err := time.Parse(time.RFC3339, timestr)
 		if err != nil {
 			importErr = twirp.InvalidArgumentError(argument, "must be RFC 3339 timestamp")
@@ -80,7 +95,7 @@ func validateAddImportReq(req *pb.AddImportReq) error {
 			e := fmt.Sprintf("time must be zero UTC, was %02d:%02d:%02d", hour, min, sec)
 			importErr = twirp.InvalidArgumentError(argument, e)
 		}
-		return t
+		return
 	}
 	for _, t := range req.Transactions {
 		mustRFC3339Date("transaction_date", t.TransactionDate)
@@ -198,10 +213,15 @@ func (s *server) UpdateTag(_ context.Context, req *pb.UpdateTagReq) (*pb.UpdateT
 		return nil, twirp.InvalidArgumentError("tag_id", err.Error())
 	}
 
-	_, err = s.DB.Exec("UPDATE records SET tag_id = $1 WHERE id = $2",
+	res, err := s.DB.Exec("UPDATE records SET tag_id = $1 WHERE id = $2",
 		sql.NullString{String: req.TagId, Valid: req.TagId == ""},
 		req.TransactionId)
 	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+	if count, err := res.RowsAffected(); count != 1 {
+		return nil, twirp.InvalidArgumentError("transaction_id", "not found in database")
+	} else if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
 	return &pb.UpdateTagResp{}, nil
