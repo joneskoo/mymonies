@@ -30,7 +30,7 @@ func FromFile(filename string) (datasource.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &bill{account, filename, transactions}, nil
+	return &bill{file: filename, account: account, transactions: transactions}, nil
 }
 
 func parseLines(lines []string) (account string, transactions []*mymonies.Transaction, err error) {
