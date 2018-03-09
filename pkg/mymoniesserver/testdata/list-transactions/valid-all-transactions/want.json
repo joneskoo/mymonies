@@ -1,0 +1,21 @@
+{
+  "transactions": [
+    {
+      "id": "1",
+      "transaction_date": "2018-03-01T00:00:00Z",
+      "value_date": "2018-03-02T00:00:00Z",
+      "payment_date": "2018-03-03T00:00:00Z",
+      "amount": 10,
+      "payee_payer": "payee or payer",
+      "account": "account number",
+      "bic": "BIC value",
+      "transaction": "transaction id",
+      "reference": "reference",
+      "payer_reference": "payer reference",
+      "message": "message",
+      "card_number": "card number",
+      "tag_id": "1",
+      "import_id": "1"
+    }
+  ]
+}
