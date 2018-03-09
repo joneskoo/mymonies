@@ -4,7 +4,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -36,7 +35,7 @@ type Postgres struct {
 func (db *Postgres) Close() error { return db.Close() }
 
 func logQuery(query string, start time.Time) {
-	log.Printf("SQL: %v (%v)\n", query, time.Now().Sub(start))
+	// log.Printf("SQL: %v (%v)\n", query, time.Now().Sub(start))
 }
 
 func (db *Postgres) Exec(query string, arg ...interface{}) (sql.Result, error) {
